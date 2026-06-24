@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit();
 }
 
-define('DB_HOST', '127.0.0.1');
+define('DB_HOST', 'localhost');
 define('DB_NAME', 'u743311035_padil');
 define('DB_USER', 'u743311035_padil');
 define('DB_PASS', 'Susjol123');

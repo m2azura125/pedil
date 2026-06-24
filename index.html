@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="description" content="Sistem manajemen lemari arsip dengan otentikasi RFID dan jejak audit lengkap">
+<title>Lemari Arsip - Secure Vault v2.4</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="login-page">
+  <!-- Left Panel -->
+  <div class="login-left">
+    <div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:48px">
+        <div style="width:40px;height:40px;background:#2D6A4F;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:18px">L</div>
+        <div><div style="font-size:16px;font-weight:600">Lemari Arsip</div><div style="font-size:10px;letter-spacing:2px;color:rgba(255,255,255,.5)">SECURE VAULT · V2.4</div></div>
+      </div>
+      <div class="cabinet-viz" id="cabinetViz">
+        <div class="cabinet-slot"><span class="name">RUANG-A</span><div class="bars"><div class="bar-segment" style="background:#4B5563"></div><div class="bar-segment" style="background:#4B5563"></div></div><div class="status-dot green"></div></div>
+        <div class="cabinet-slot"><span class="name">RUANG-B</span><div class="bars"><div class="bar-segment" style="background:#3B82F6"></div><div class="bar-segment" style="background:#4B5563"></div></div><div class="status-dot green"></div></div>
+        <div class="cabinet-slot"><span class="name">RUANG-C</span><div class="bars"><div class="bar-segment" style="background:#4B5563"></div><div class="bar-segment" style="background:#4B5563"></div></div><div class="status-dot green"></div></div>
+        <div class="cabinet-slot"><span class="name">RUANG-D</span><div class="bars"><div class="bar-segment" style="background:#4B5563"></div><div class="bar-segment" style="background:#F97316"></div></div><div class="status-dot red"></div></div>
+      </div>
+    </div>
+    <div>
+      <h1 style="font-family:var(--font-display);font-size:28px;margin-bottom:4px">Setiap arsip <em>terjaga</em>,<br>setiap akses tercatat.</h1>
+      <p style="font-size:12px;color:rgba(255,255,255,.5);margin-top:12px">Sistem manajemen lemari arsip dengan otentikasi RFID dan<br>jejak audit lengkap.</p>
+      <div style="margin-top:16px;font-family:monospace;font-size:12px;color:rgba(255,255,255,.4)" id="loginClock"></div>
+    </div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="login-right">
+    <div class="server-status">
+      <span class="dot"></span>
+      <span>Server tersambung</span>
+      <span style="margin-left:8px">NODE-A · 192.168.1.10</span>
+    </div>
+
+    <div style="margin-bottom:8px">
+      <div class="breadcrumb" style="font-size:10px;letter-spacing:2px;color:var(--accent);font-weight:600">● OTENTIKASI PETUGAS</div>
+      <h1 style="font-family:var(--font-display);font-size:32px">Masuk ke <em>arsip.</em></h1>
+      <p style="color:var(--text-secondary);font-size:14px;margin-top:4px">Gunakan kredensial petugas, atau tempelkan kartu RFID ke pembaca.</p>
+    </div>
+
+    <form id="loginForm" onsubmit="return handleLogin(event)">
+      <div class="form-group">
+        <label>Nama Pengguna</label>
+        <div style="position:relative">
+          <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-secondary)">👤</span>
+          <input type="text" class="form-input" id="username" placeholder="cth. rahmadani.adm" style="padding-left:40px" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Kata Sandi</label>
+        <div style="position:relative">
+          <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text-secondary)">🔒</span>
+          <input type="password" class="form-input" id="password" placeholder="••••••••" style="padding-left:40px" required>
+          <button type="button" onclick="togglePassword()" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-secondary)">👁</button>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;font-size:12px">
+        <label style="display:flex;align-items:center;gap:6px;letter-spacing:0;text-transform:none;font-weight:400;color:var(--text-secondary)">
+          <input type="checkbox" checked> Ingat sesi ini di terminal
+        </label>
+        <a href="#" style="color:var(--text-secondary)">Lupa sandi?</a>
+      </div>
+      <button type="submit" class="btn btn-primary" id="loginBtn">Masuk →</button>
+    </form>
+
+    <div class="divider">ATAU</div>
+
+    <button class="rfid-login-btn" id="rfidBtn" onclick="simulateRFID()">
+      <div class="icon">🔑</div>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:14px">Tempel Kartu RFID</div>
+        <div style="font-size:11px;color:var(--text-secondary)">Klik untuk simulasi tap pada terminal</div>
+      </div>
+      <span style="font-family:monospace;font-size:10px;color:var(--text-secondary);letter-spacing:1px">READER NODE-A</span>
+    </button>
+
+    <div style="margin-top:16px;text-align:center;font-size:11px;color:var(--text-secondary)">
+      🔒 Sesi dienkripsi end-to-end. Aktivitas dicatat oleh sistem.
+    </div>
+
+    <div id="errorMsg" style="display:none;margin-top:12px;padding:10px 16px;background:#FEE2E2;border-radius:8px;color:#DC3545;font-size:12px"></div>
+  </div>
+</div>
+
+<!-- Lockout Overlay -->
+<div class="countdown-overlay" id="lockoutOverlay" style="display:none">
+  <div class="countdown-box">
+    <h2>🔒 Akses Dikunci</h2>
+    <p style="color:var(--text-secondary)">Terlalu banyak percobaan gagal</p>
+    <div class="timer" id="lockoutTimer">05:00</div>
+    <p style="font-size:12px;color:var(--text-secondary)">Coba lagi setelah countdown selesai</p>
+  </div>
+</div>
+
+<script>
+// Clock
+function updateClock(){const d=new Date();const days=['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const el=document.getElementById('loginClock');
+if(el)el.innerHTML=`${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}<br>${String(d.getHours()).padStart(2,'0')}.${String(d.getMinutes()).padStart(2,'0')}.${String(d.getSeconds()).padStart(2,'0')} WIB`;}
+setInterval(updateClock,1000);updateClock();
+
+function togglePassword(){const p=document.getElementById('password');p.type=p.type==='password'?'text':'password';}
+
+let rfidFailCount=0;let pinFailCount=0;
+
+async function handleLogin(e){
+  e.preventDefault();
+  const btn=document.getElementById('loginBtn');btn.textContent='Memproses...';btn.disabled=true;
+  try{
+    const res=await fetch('api/login.php',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'login',username:document.getElementById('username').value,password:document.getElementById('password').value})});
+    const data=await res.json();
+    if(data.success){localStorage.setItem('pedil_user',JSON.stringify(data.user));window.location.href='dashboard.html';}
+    else{showError(data.error||'Login gagal');}
+  }catch(err){showError('Koneksi server gagal');}
+  btn.textContent='Masuk →';btn.disabled=false;
+}
+
+function simulateRFID(){
+  const uid=prompt('Masukkan UID RFID (cth: A1B2C3D4):','A1B2C3D4');
+  if(!uid)return;
+  fetch('api/login.php',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'rfid',rfid_uid:uid})})
+  .then(r=>r.json()).then(data=>{
+    if(data.success){localStorage.setItem('pedil_user',JSON.stringify(data.user));window.location.href='dashboard.html';}
+    else if(data.lockout){showLockout(data.remaining_seconds);}
+    else if(data.require_pin){showError('Kartu ditolak 3x! Gunakan PIN.');promptPIN();}
+    else{rfidFailCount++;showError(`Akses ditolak (${data.fail_count||rfidFailCount}/3)`);}
+  }).catch(()=>showError('Koneksi gagal'));
+}
+
+function promptPIN(){
+  const pin=prompt('Masukkan PIN 6 digit (konfirmasi dengan OK):');
+  if(!pin)return;
+  fetch('api/rfid_auth.php',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'verify_pin',pin:pin})})
+  .then(r=>r.json()).then(data=>{
+    if(data.authorized){alert('Akses diberikan!');window.location.href='dashboard.html';}
+    else if(data.lockout){showLockout(data.remaining_seconds);}
+    else{pinFailCount++;showError(`PIN salah (${data.fail_count||pinFailCount}/3)`);}
+  }).catch(()=>showError('Koneksi gagal'));
+}
+
+function showError(msg){const el=document.getElementById('errorMsg');el.style.display='block';el.textContent=msg;setTimeout(()=>el.style.display='none',5000);}
+
+function showLockout(seconds){
+  document.getElementById('lockoutOverlay').style.display='flex';
+  let rem=seconds;
+  const interval=setInterval(()=>{
+    rem--;const m=Math.floor(rem/60);const s=rem%60;
+    document.getElementById('lockoutTimer').textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    if(rem<=0){clearInterval(interval);document.getElementById('lockoutOverlay').style.display='none';}
+  },1000);
+}
+
+// Check if already logged in
+const user=localStorage.getItem('pedil_user');
+if(user)window.location.href='dashboard.html';
+</script>
+</body>
+</html>

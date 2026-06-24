@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Pengaturan Akun - Lemari Arsip</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+<nav class="sidebar">
+  <div class="sidebar-brand"><div class="icon">L</div><div class="info"><h2>Lemari Arsip</h2><span>NODE-A · v2.4</span></div></div>
+  <div class="sidebar-section"><label>Menu Utama</label>
+    <ul class="sidebar-nav">
+      <li><a href="dashboard.html"><span class="icon">📊</span> Dashboard</a></li>
+      <li><a href="rekap.html"><span class="icon">📋</span> Rekap</a></li>
+    </ul>
+  </div>
+  <div class="sidebar-section"><label>Akun</label>
+    <ul class="sidebar-nav"><li><a href="pengaturan.html" class="active"><span class="icon">⚙️</span> Pengaturan Akun</a></li></ul>
+  </div>
+  <div class="sidebar-user">
+    <div class="user-card">
+      <div class="avatar" id="sidebarAvatar" style="background:#2D6A4F">AR</div>
+      <div class="meta"><h4 id="sidebarName">Adm. Rahmadani</h4><span id="sidebarRfid">RFID-001</span><br><span id="sidebarRole">Administrator</span></div>
+    </div>
+    <button class="logout-btn" onclick="logout()">Keluar dari sesi</button>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <div class="search"><span>🔍</span><input type="text" placeholder="Cari arsip, ruangan, atau kartu RFID..."></div>
+    <div class="actions"><div class="time-badge"><span>🕐</span><span id="topClock"></span></div></div>
+  </div>
+  <div class="page-header">
+    <div class="breadcrumb">● PENGATURAN AKUN</div>
+    <h1>Profil <em>& Preferensi</em></h1>
+  </div>
+  <div class="page-content">
+    <div class="card account-card">
+      <h3 style="font-size:16px;font-weight:700">Informasi Akun</h3>
+      <p style="font-size:12px;color:var(--text-secondary);margin-bottom:16px">Detail identitas petugas dan kartu RFID</p>
+      <div class="account-header">
+        <div class="avatar-lg" id="profileAvatar" style="background:#2D6A4F">AR</div>
+        <div>
+          <h3 id="profileName">Adm. Rahmadani</h3>
+          <div style="font-size:12px;color:var(--text-secondary)" id="profileRole">Administrator</div>
+          <div style="margin-top:4px"><span class="rfid-tag" id="profileRfid">RFID-001</span> <span class="badge badge-active" style="margin-left:4px">● AKTIF</span></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Nama Lengkap</label><input type="text" class="form-input" id="inputName" value="Adm. Rahmadani"></div>
+        <div class="form-group"><label>Alamat Email</label><input type="email" class="form-input" id="inputEmail" value="rahmadani@arsip.go.id"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>No. Kartu RFID</label><input type="text" class="form-input" value="RFID-001" disabled style="background:#f5f5f5"></div>
+        <div class="form-group"><label>Jabatan</label><input type="text" class="form-input" id="inputJabatan" value="Administrator" disabled style="background:#f5f5f5"></div>
+      </div>
+      <div class="form-actions"><button class="btn btn-primary btn-sm" style="width:auto" onclick="alert('Perubahan disimpan!')">Simpan perubahan</button></div>
+    </div>
+
+    <div class="card account-card">
+      <h3 style="font-size:16px;font-weight:700">Keamanan</h3>
+      <p style="font-size:12px;color:var(--text-secondary);margin-bottom:16px">Kata sandi dan autentikasi</p>
+      <div class="security-item">
+        <div class="info"><h4>Kata Sandi</h4><p>Terakhir diubah 30 hari lalu</p></div>
+        <button class="btn btn-outline btn-sm">Ubah kata sandi</button>
+      </div>
+      <div class="security-item">
+        <div class="info"><h4>Sertifikat RFID</h4><p>Kartu aktif terhubung ke akun ini</p></div>
+        <button class="btn btn-outline btn-sm">Kelola kartu</button>
+      </div>
+      <div class="security-item">
+        <div class="info"><h4>PIN Akses Darurat</h4><p>PIN untuk akses jika RFID gagal</p></div>
+        <button class="btn btn-outline btn-sm">Ubah PIN</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+<script>
+const user=JSON.parse(localStorage.getItem('pedil_user')||'null');
+if(!user)window.location.href='index.html';
+function logout(){localStorage.removeItem('pedil_user');window.location.href='index.html';}
+if(user){
+  document.getElementById('sidebarName').textContent=user.nama_lengkap;
+  document.getElementById('sidebarAvatar').textContent=user.avatar_initials||'U';
+  if(user.avatar_color){document.getElementById('sidebarAvatar').style.background=user.avatar_color;document.getElementById('profileAvatar').style.background=user.avatar_color;}
+  document.getElementById('sidebarRfid').textContent=user.rfid_label||'';
+  document.getElementById('sidebarRole').textContent=user.jabatan||'';
+  document.getElementById('profileAvatar').textContent=user.avatar_initials||'U';
+  document.getElementById('profileName').textContent=user.nama_lengkap;
+  document.getElementById('profileRole').textContent=user.jabatan;
+  document.getElementById('profileRfid').textContent=user.rfid_label||'';
+  document.getElementById('inputName').value=user.nama_lengkap;
+  document.getElementById('inputEmail').value=user.email||'';
+}
+function updateTopClock(){const d=new Date();const days=['Min','Sen','Sel','Rab','Kam','Jum','Sab'];const months=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];document.getElementById('topClock').textContent=`${String(d.getHours()).padStart(2,'0')}.${String(d.getMinutes()).padStart(2,'0')}  ${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;}
+setInterval(updateTopClock,1000);updateTopClock();
+</script>
+</body>
+</html>

@@ -1,0 +1,113 @@
+/* Tables */
+.data-table { width:100%; border-collapse:collapse; }
+.data-table th { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--text-secondary);
+  font-weight:600; padding:12px 16px; text-align:left; border-bottom:2px solid var(--border); }
+.data-table td { padding:12px 16px; border-bottom:1px solid var(--border); font-size:13px; vertical-align:middle; }
+.data-table tr:hover { background:rgba(45,106,79,.03); }
+.data-table .user-cell { display:flex; align-items:center; gap:10px; }
+.data-table .user-cell .avatar { width:28px; height:28px; border-radius:50%; display:flex;
+  align-items:center; justify-content:center; color:#fff; font-weight:600; font-size:10px; flex-shrink:0; }
+.rfid-tag { background:var(--bg-sidebar); color:#fff; padding:2px 8px; border-radius:4px;
+  font-size:10px; font-family:monospace; letter-spacing:.5px; }
+/* Filter tabs */
+.filter-tabs { display:flex; gap:6px; flex-wrap:wrap; }
+.filter-tab { padding:6px 14px; border-radius:20px; border:1px solid var(--border); background:var(--bg-card);
+  font-size:12px; color:var(--text-secondary); transition:.2s; }
+.filter-tab.active { background:var(--bg-sidebar); color:#fff; border-color:transparent; }
+.filter-tab:hover { border-color:var(--accent); }
+.filter-bar { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px; }
+.search-input { display:flex; align-items:center; gap:8px; border:1px solid var(--border);
+  border-radius:var(--radius); padding:6px 14px; background:var(--bg-card); }
+.search-input input { border:none; outline:none; font-size:12px; width:200px; background:transparent; }
+/* Room cards */
+.room-card { display:flex; align-items:center; gap:16px; padding:16px 20px;
+  border:1px solid var(--border); border-radius:var(--radius); margin-bottom:12px; background:var(--bg-card); }
+.room-pct { position:relative; width:48px; height:48px; }
+.room-pct svg { transform:rotate(-90deg); }
+.room-pct .pct-text { position:absolute; inset:0; display:flex; align-items:center;
+  justify-content:center; font-size:11px; font-weight:700; }
+.room-info { flex:1; }
+.room-info h3 { font-size:14px; font-weight:700; }
+.room-info .meta { font-size:11px; color:var(--text-secondary); font-family:monospace; }
+.room-info .slots { font-size:11px; color:var(--text-secondary); margin-top:2px; }
+.room-access { font-size:11px; color:var(--text-secondary); text-align:right; }
+/* User bar chart */
+.user-bar { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+.user-bar .info { display:flex; align-items:center; gap:8px; min-width:140px; }
+.user-bar .bar { flex:1; height:8px; border-radius:4px; background:var(--border); overflow:hidden; }
+.user-bar .bar-fill { height:100%; border-radius:4px; transition:width .6s ease; }
+.user-bar .count { font-size:14px; font-weight:700; min-width:30px; text-align:right; }
+/* Heatmap */
+.heatmap { display:grid; gap:3px; }
+.heatmap-cell { width:18px; height:18px; border-radius:3px; background:var(--border); }
+/* Login page */
+.login-page { display:grid; grid-template-columns:1fr 1fr; min-height:100vh; }
+.login-left { background:var(--bg-sidebar); color:#fff; padding:48px; display:flex;
+  flex-direction:column; justify-content:space-between; }
+.login-right { padding:48px 64px; display:flex; flex-direction:column; justify-content:center; }
+.login-right h1 { font-family:var(--font-display); font-size:32px; margin-bottom:8px; }
+.login-right h1 em { font-style:italic; }
+.login-right p { color:var(--text-secondary); font-size:14px; margin-bottom:32px; }
+.form-group { margin-bottom:20px; }
+.form-group label { font-size:9px; letter-spacing:2px; text-transform:uppercase;
+  color:var(--text-secondary); font-weight:600; display:block; margin-bottom:6px; }
+.form-input { width:100%; padding:12px 16px; border:1px solid var(--border); border-radius:var(--radius);
+  font-size:14px; background:var(--bg-card); transition:.2s; }
+.form-input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(45,106,79,.1); }
+.btn { padding:12px 24px; border-radius:var(--radius); border:none; font-size:14px;
+  font-weight:600; transition:.2s; display:inline-flex; align-items:center; gap:8px; justify-content:center; }
+.btn-primary { background:var(--bg-sidebar); color:#fff; width:100%; }
+.btn-primary:hover { background:var(--accent); }
+.btn-outline { background:transparent; border:1px solid var(--border); color:var(--text); }
+.rfid-login-btn { display:flex; align-items:center; gap:12px; padding:16px 20px; width:100%;
+  border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-card);
+  cursor:pointer; transition:.2s; text-align:left; }
+.rfid-login-btn:hover { border-color:var(--accent); background:rgba(45,106,79,.03); }
+.rfid-login-btn .icon { width:40px; height:40px; background:var(--bg-sidebar); border-radius:50%;
+  display:flex; align-items:center; justify-content:center; color:#fff; }
+.divider { display:flex; align-items:center; gap:16px; margin:24px 0; color:var(--text-secondary); font-size:11px; letter-spacing:2px; }
+.divider::before,.divider::after { content:''; flex:1; height:1px; background:var(--border); }
+/* Server status */
+.server-status { display:flex; align-items:center; gap:8px; font-size:11px; justify-content:flex-end; margin-bottom:24px; }
+.server-status .dot { width:8px; height:8px; border-radius:50%; background:var(--success); }
+.server-status span { color:var(--text-secondary); font-family:monospace; letter-spacing:.5px; }
+/* Cabinet viz */
+.cabinet-viz { background:var(--bg-sidebar); border-radius:var(--radius-lg); padding:32px; }
+.cabinet-slot { background:rgba(255,255,255,.06); border-radius:var(--radius-sm); padding:12px 16px;
+  margin-bottom:8px; display:flex; align-items:center; gap:12px; }
+.cabinet-slot .name { font-size:11px; font-weight:600; color:rgba(255,255,255,.7);
+  background:rgba(255,255,255,.1); padding:3px 10px; border-radius:4px; min-width:70px; letter-spacing:.5px; }
+.cabinet-slot .bars { flex:1; display:flex; gap:4px; }
+.cabinet-slot .bar-segment { height:10px; border-radius:3px; flex:1; }
+.cabinet-slot .status-dot { width:10px; height:10px; border-radius:50%; }
+.cabinet-slot .status-dot.green { background:var(--success); }
+.cabinet-slot .status-dot.yellow { background:var(--warning); }
+.cabinet-slot .status-dot.red { background:var(--danger); }
+/* Account page */
+.account-card { max-width:700px; }
+.account-header { display:flex; align-items:center; gap:16px; margin-bottom:24px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+.account-header .avatar-lg { width:56px; height:56px; border-radius:50%; display:flex;
+  align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:18px; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+.form-actions { display:flex; justify-content:flex-end; margin-top:8px; }
+.btn-sm { padding:8px 18px; font-size:12px; }
+.security-item { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--border); }
+.security-item:last-child { border:none; }
+.security-item .info h4 { font-size:14px; font-weight:600; }
+.security-item .info p { font-size:12px; color:var(--text-secondary); }
+/* Countdown */
+.countdown-overlay { position:fixed; inset:0; background:rgba(0,0,0,.8); display:flex;
+  align-items:center; justify-content:center; z-index:999; }
+.countdown-box { background:var(--bg-card); border-radius:var(--radius-lg); padding:48px; text-align:center; max-width:400px; }
+.countdown-box h2 { font-size:24px; color:var(--danger); margin-bottom:8px; }
+.countdown-box .timer { font-size:64px; font-weight:700; font-family:monospace; color:var(--danger); margin:16px 0; }
+/* Responsive */
+@media(max-width:768px) {
+  .login-page { grid-template-columns:1fr; }
+  .login-left { display:none; }
+  .sidebar { display:none; }
+  .main { margin-left:0; }
+  .grid-2 { grid-template-columns:1fr; }
+  .stats-row { grid-template-columns:1fr 1fr; }
+  .form-row { grid-template-columns:1fr; }
+}

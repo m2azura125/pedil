@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dashboard - Lemari Arsip</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+<!-- Sidebar -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="icon">L</div>
+    <div class="info"><h2>Lemari Arsip</h2><span>NODE-A · v2.4</span></div>
+  </div>
+  <div class="sidebar-section"><label>Menu Utama</label>
+    <ul class="sidebar-nav">
+      <li><a href="dashboard.html" class="active" id="nav-dashboard"><span class="icon">📊</span> Dashboard</a></li>
+      <li><a href="rekap.html" id="nav-rekap"><span class="icon">📋</span> Rekap</a></li>
+    </ul>
+  </div>
+  <div class="sidebar-section"><label>Akun</label>
+    <ul class="sidebar-nav">
+      <li><a href="pengaturan.html" id="nav-settings"><span class="icon">⚙️</span> Pengaturan Akun</a></li>
+    </ul>
+  </div>
+  <div class="sidebar-user">
+    <div class="user-card">
+      <div class="avatar" id="sidebarAvatar" style="background:#2D6A4F">AR</div>
+      <div class="meta"><h4 id="sidebarName">Adm. Rahmadani</h4><span id="sidebarRfid">RFID-001</span><br><span id="sidebarRole">Administrator</span></div>
+    </div>
+    <button class="logout-btn" onclick="logout()">Keluar dari sesi</button>
+  </div>
+</nav>
+
+<!-- Main -->
+<div class="main">
+  <div class="topbar">
+    <div class="search"><span>🔍</span><input type="text" placeholder="Cari arsip, ruangan, atau kartu RFID..."></div>
+    <div class="actions">
+      <button style="width:36px;height:36px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-card);display:flex;align-items:center;justify-content:center">🔔</button>
+      <div class="time-badge"><span>🕐</span><span id="topClock"></span></div>
+    </div>
+  </div>
+
+  <div class="page-header">
+    <div class="breadcrumb">● DASHBOARD</div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h1 id="greeting">Selamat malam, <em>Rahmadani.</em></h1>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline btn-sm">Ekspor laporan</button>
+        <button class="btn btn-primary btn-sm" style="width:auto">+ Tambah arsip</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-content">
+    <!-- Stats Row -->
+    <div class="stats-row">
+      <div class="stat-card highlight">
+        <div class="label">Okupansi Keseluruhan</div>
+        <div class="value" id="statOccupancy">61% <span class="change">+3%</span></div>
+        <div class="sub" id="statOccSub">153 dari 252 slot</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Pintu Terbuka</div>
+        <div class="value" id="statDoors">1</div>
+        <div class="sub">Ruangan 1 aktif</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Akses Hari Ini</div>
+        <div class="value" id="statAccess">24 <span class="change">+8</span></div>
+        <div class="sub" id="statAccessSub">dari 4 pengguna aktif</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Ditolak (7 Hari)</div>
+        <div class="value" id="statRejected">5</div>
+        <div class="sub">Kartu tidak terdaftar</div>
+      </div>
+    </div>
+
+    <!-- Live Monitor ESP32 -->
+    <div class="card" id="liveMonitorCard" style="margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div class="card-title" style="margin-bottom:0">
+          Monitor Live ESP32
+          <span id="esp32DotWrap" style="display:inline-flex;align-items:center;gap:6px;margin-left:10px;font-size:11px;font-weight:400;color:var(--text-secondary)">
+            <span id="esp32Dot" style="width:8px;height:8px;border-radius:50%;background:#ccc;display:inline-block;transition:.4s"></span>
+            <span id="esp32StatusTxt">Menghubungkan...</span>
+          </span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="liveTs" style="font-size:11px;color:var(--text-secondary)"></span>
+          <button id="btnForceLock" onclick="sendCommand('force_lock')"
+            style="padding:6px 14px;font-size:11px;font-weight:600;border:1px solid var(--danger);color:var(--danger);
+                   background:#fff;border-radius:var(--radius-sm);cursor:pointer;transition:.2s"
+            title="Paksa kunci semua pintu sekarang">
+            🔒 Kunci Darurat
+          </button>
+        </div>
+      </div>
+      <div class="card-subtitle" id="liveNodeInfo">NODE-A · menunggu data pertama...</div>
+
+      <div style="display:grid;grid-template-columns:1fr 160px 130px;gap:24px;align-items:start;margin-top:8px">
+
+        <!-- Stok Kotak 1–4 -->
+        <div>
+          <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-secondary);font-weight:600;margin-bottom:10px">Stok Kotak</div>
+          <div id="stokBars"></div>
+        </div>
+
+        <!-- Pintu -->
+        <div>
+          <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-secondary);font-weight:600;margin-bottom:10px">Status Pintu</div>
+          <div id="doorStatus"></div>
+        </div>
+
+        <!-- Getaran -->
+        <div>
+          <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-secondary);font-weight:600;margin-bottom:10px">Getaran</div>
+          <div id="vibStatus"></div>
+        </div>
+      </div>
+
+      <!-- Alert strip -->
+      <div id="alertStrip" style="display:none;margin-top:14px;padding:10px 14px;background:#FEE2E2;
+           border-radius:var(--radius-sm);font-size:12px;color:var(--danger);font-weight:600"></div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Akses per Pengguna</div>
+        <div class="card-subtitle">Total akses 30 hari terakhir · berdasarkan kartu RFID</div>
+        <div id="userBars"></div>
+        <div style="display:flex;gap:16px;margin-top:12px;font-size:11px;color:var(--text-secondary)">
+          <span>● <span style="color:var(--success)">Berhasil</span></span>
+          <span>● <span style="color:var(--danger)">Ditolak</span></span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Tren Harian</div>
+        <div class="card-subtitle">Jumlah akses 9 hari terakhir</div>
+        <div id="trendChart" style="display:flex;align-items:flex-end;gap:8px;height:160px;padding-top:20px"></div>
+        <div style="margin-top:8px;font-size:11px;color:var(--text-secondary)" id="trendAvg">Rata-rata 13.9 akses/hari</div>
+      </div>
+    </div>
+
+    <!-- Status Row -->
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Status Ruangan</div>
+        <div class="card-subtitle">Tingkat okupansi dan aktivitas terakhir</div>
+        <div id="roomCards"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Peta Aktivitas Mingguan</div>
+        <div class="card-subtitle">Intensitas akses per jam · 7 hari terakhir</div>
+        <div id="heatmapContainer" style="overflow-x:auto"></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+// ── AUTH ─────────────────────────────────────────────────────
+const user=JSON.parse(localStorage.getItem('pedil_user')||'null');
+if(!user)window.location.href='index.html';
+function logout(){localStorage.removeItem('pedil_user');window.location.href='index.html';}
+
+if(user){
+  document.getElementById('sidebarName').textContent=user.nama_lengkap;
+  document.getElementById('sidebarRfid').textContent=user.rfid_label||'';
+  document.getElementById('sidebarRole').textContent=user.jabatan||'';
+  document.getElementById('sidebarAvatar').textContent=user.avatar_initials||'U';
+  if(user.avatar_color)document.getElementById('sidebarAvatar').style.background=user.avatar_color;
+  const h=new Date().getHours();
+  const greet=h<11?'Selamat pagi':h<15?'Selamat siang':h<18?'Selamat sore':'Selamat malam';
+  const firstName=user.nama_lengkap.split(' ').pop();
+  document.getElementById('greeting').innerHTML=`${greet}, <em>${firstName}.</em>`;
+}
+
+// ── CLOCK ────────────────────────────────────────────────────
+function updateTopClock(){
+  const d=new Date(),days=['Min','Sen','Sel','Rab','Kam','Jum','Sab'],
+        months=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  document.getElementById('topClock').textContent=
+    `${String(d.getHours()).padStart(2,'0')}.${String(d.getMinutes()).padStart(2,'0')}  ${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
+}
+setInterval(updateTopClock,1000); updateTopClock();
+
+// ── DASHBOARD DATA (dari API, fallback demo) ─────────────────
+const demoData={
+  occupancy:{pct:61,filled:153,total:252},open_doors:1,
+  access_today:{count:24,users:4},rejected_7d:5,
+  user_access:[
+    {nama_lengkap:'Adm. Rahmadani',avatar_initials:'AR',avatar_color:'#2D6A4F',rfid_label:'RFID-001',berhasil:24,ditolak:0,total:24},
+    {nama_lengkap:'Siti Aminah',avatar_initials:'SA',avatar_color:'#1B4332',rfid_label:'RFID-002',berhasil:18,ditolak:0,total:18},
+    {nama_lengkap:'Budi Santoso',avatar_initials:'BS',avatar_color:'#D4A017',rfid_label:'RFID-003',berhasil:15,ditolak:0,total:15},
+    {nama_lengkap:'Hendra Wijaya',avatar_initials:'HW',avatar_color:'#7B2D8B',rfid_label:'RFID-004',berhasil:9,ditolak:0,total:9},
+    {nama_lengkap:'Tidak Dikenal',avatar_initials:'?',avatar_color:'#DC3545',rfid_label:'RFID-005',berhasil:0,ditolak:3,total:3},
+    {nama_lengkap:'Tidak Dikenal',avatar_initials:'?',avatar_color:'#DC3545',rfid_label:'RFID-006',berhasil:0,ditolak:2,total:2}
+  ],
+  daily_trend:[
+    {tanggal:'2026-05-27',total:12},{tanggal:'2026-05-28',total:8},{tanggal:'2026-05-29',total:19},
+    {tanggal:'2026-05-30',total:14},{tanggal:'2026-05-31',total:22},{tanggal:'2026-06-01',total:6},
+    {tanggal:'2026-06-02',total:4},{tanggal:'2026-06-03',total:17},{tanggal:'2026-06-04',total:24}
+  ],
+  rooms:[
+    {id:1,kode_ruangan:'R-01',nama_ruangan:'Ruangan 1',deskripsi:'Arsip Aktif',lantai:'Lt.2',total_slot:50,slot_terisi:34,status:'Normal'},
+    {id:2,kode_ruangan:'R-07',nama_ruangan:'Ruangan 2',deskripsi:'Arsip Rahasia',lantai:'Lt.2',total_slot:8,slot_terisi:4,status:'Normal'},
+    {id:3,kode_ruangan:'R-23',nama_ruangan:'Ruangan 3',deskripsi:'Arsip Inaktif',lantai:'Lt.1',total_slot:94,slot_terisi:85,status:'Hampir Penuh'},
+    {id:4,kode_ruangan:'R-04',nama_ruangan:'Ruangan 4',deskripsi:'Arsip Vital',lantai:'Lt.3',total_slot:100,slot_terisi:30,status:'Normal'}
+  ]
+};
+
+async function loadDashboard(){
+  try{
+    const res=await fetch('api/dashboard.php',{signal:AbortSignal.timeout(5000)});
+    if(!res.ok) throw new Error();
+    const d=await res.json();
+    renderDashboard(d);
+  }catch{
+    renderDashboard(demoData);
+  }
+}
+loadDashboard();
+setInterval(loadDashboard, 30000); // refresh tiap 30 detik
+
+// ── RENDER DASHBOARD ─────────────────────────────────────────
+function renderDashboard(d){
+  document.getElementById('statOccupancy').innerHTML=`${d.occupancy.pct}% <span class="change">+3%</span>`;
+  document.getElementById('statOccSub').textContent=`${d.occupancy.filled} dari ${d.occupancy.total} slot`;
+  document.getElementById('statDoors').textContent=d.open_doors;
+  document.getElementById('statAccess').innerHTML=`${d.access_today.count} <span class="change">+${Math.max(0,d.access_today.count-16)}</span>`;
+  document.getElementById('statAccessSub').textContent=`dari ${d.access_today.users} pengguna aktif`;
+  document.getElementById('statRejected').textContent=d.rejected_7d;
+
+  if(d.user_access&&d.user_access.length){
+    const maxTotal=Math.max(...d.user_access.map(u=>u.total),1);
+    const barsHtml=d.user_access.map(u=>{
+      const pct=Math.round(u.total/maxTotal*100);
+      const color=u.ditolak>0?'var(--danger)':u.avatar_color==='#D4A017'?'var(--orange)':u.avatar_color==='#7B2D8B'?'var(--purple)':u.avatar_color==='#1B4332'?'var(--blue)':'var(--success)';
+      return `<div class="user-bar"><div class="info"><div class="avatar" style="background:${u.avatar_color||'#888'};width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:600;flex-shrink:0">${u.avatar_initials||'?'}</div><div><div style="font-size:12px;font-weight:600">${u.nama_lengkap||'—'}</div><div style="font-size:10px;color:var(--text-secondary)">${u.rfid_label||''}</div></div></div><div class="bar"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div><div class="count">${u.total}</div></div>`;
+    }).join('');
+    document.getElementById('userBars').innerHTML=barsHtml;
+  }
+
+  if(d.daily_trend&&d.daily_trend.length){
+    const maxT=Math.max(...d.daily_trend.map(t=>t.total),1);
+    const trendHtml=d.daily_trend.map((t,i)=>{
+      const h=Math.max(20,Math.round(t.total/maxT*140));
+      const day=new Date(t.tanggal+'T00:00:00');
+      const dayNames=['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+      const isToday=i===d.daily_trend.length-1;
+      return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px"><div style="font-size:10px;color:var(--text-secondary)">${t.total}</div><div style="width:100%;height:${h}px;background:${isToday?'var(--accent)':'#D1D5DB'};border-radius:4px"></div><div style="font-size:10px;color:var(--text-secondary)">${dayNames[day.getDay()]}</div></div>`;
+    }).join('');
+    document.getElementById('trendChart').innerHTML=trendHtml;
+    const avg=(d.daily_trend.reduce((s,t)=>s+t.total,0)/d.daily_trend.length).toFixed(1);
+    document.getElementById('trendAvg').innerHTML=`Rata-rata ${avg} akses/hari`;
+  }
+
+  if(d.rooms&&d.rooms.length){
+    const roomHtml=d.rooms.map(r=>{
+      const pct=Math.round(r.slot_terisi/r.total_slot*100);
+      const circumference=2*Math.PI*18;
+      const offset=circumference-(pct/100)*circumference;
+      const statusBg=r.status==='Hampir Penuh'||r.status==='Penuh'?'#FEE2E2':'var(--accent-light)';
+      const statusClr=r.status==='Hampir Penuh'||r.status==='Penuh'?'var(--danger)':'var(--accent)';
+      const lastAcc=r.last_access?new Date(r.last_access).toLocaleString('id-ID',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Belum ada';
+      return `<div class="room-card"><div class="room-pct"><svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" stroke="var(--border)" stroke-width="4" fill="none"/><circle cx="24" cy="24" r="18" stroke="var(--accent)" stroke-width="4" fill="none" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round"/></svg><div class="pct-text">${pct}%</div></div><div class="room-info"><h3>${r.nama_ruangan}</h3><div class="meta">${r.kode_ruangan} · ${r.deskripsi} · ${r.lantai}</div><div class="slots">${r.slot_terisi}/${r.total_slot} slot terisi</div></div><span class="badge" style="background:${statusBg};color:${statusClr}">${r.status.toUpperCase()}</span><div class="room-access">Akses: ${lastAcc}</div></div>`;
+    }).join('');
+    document.getElementById('roomCards').innerHTML=roomHtml;
+  }
+
+  // Heatmap (tetap acak untuk ilustrasi)
+  const hours=Array.from({length:12},(_,i)=>i+7);
+  const hDays=['Sen','Sel','Rab','Kam','Jum','Sab','Min'];
+  let heatHtml='<div style="display:grid;grid-template-columns:40px repeat('+hours.length+',1fr);gap:3px">';
+  heatHtml+='<div></div>'+hours.map(h=>`<div style="font-size:9px;text-align:center;color:var(--text-secondary)">${String(h).padStart(2,'0')}</div>`).join('');
+  hDays.forEach(day=>{
+    heatHtml+=`<div style="font-size:10px;color:var(--text-secondary);display:flex;align-items:center">${day}</div>`;
+    hours.forEach(()=>{const v=Math.random();const bg=v<.2?'#E5E0DB':v<.4?'#D4EDDA':v<.6?'#A7D8C0':v<.8?'#52B788':'#2D6A4F';heatHtml+=`<div class="heatmap-cell" style="background:${bg}"></div>`;});
+  });
+  heatHtml+='</div><div style="margin-top:8px;font-size:10px;color:var(--text-secondary)">sedikit <span style="display:inline-flex;gap:2px">'+['#E5E0DB','#D4EDDA','#A7D8C0','#52B788','#2D6A4F'].map(c=>`<span style="width:10px;height:10px;border-radius:2px;background:${c};display:inline-block"></span>`).join('')+'</span> banyak</div>';
+  document.getElementById('heatmapContainer').innerHTML=heatHtml;
+}
+
+// ── LIVE MONITOR ESP32 ───────────────────────────────────────
+async function refreshLive(){
+  try{
+    const res=await fetch('api/sensor_live.php?node_id=NODE-A',{signal:AbortSignal.timeout(4000)});
+    if(!res.ok) throw new Error();
+    const d=await res.json();
+    renderLive(d);
+  }catch{
+    setOffline();
+  }
+}
+
+function renderLive(d){
+  const dot=document.getElementById('esp32Dot');
+  const txt=document.getElementById('esp32StatusTxt');
+  const info=document.getElementById('liveNodeInfo');
+  document.getElementById('liveTs').textContent='Update: '+d.ts;
+
+  if(d.online){
+    dot.style.background='var(--success)';
+    dot.style.boxShadow='0 0 0 3px rgba(16,185,129,.2)';
+    txt.textContent='Online';
+    const ip=d.ip?` · IP ${d.ip}`:'';
+    const nano=d.nano_ok?'Nano OK':'Nano?';
+    const state=d.sys_state||'IDLE';
+    const relay=d.relay_open?'🔓 RELAY TERBUKA':'🔒 Relay Aman';
+    info.textContent=`NODE-A${ip} · ${state} · ${nano} · ${relay}`;
+  }else{
+    setOffline(d.last_seen);
+  }
+
+  // Stok bars
+  const stokHtml=(d.stok||[]).map((s,i)=>{
+    const pct=s?s.percent:0;
+    const st=s?s.status:'error';
+    const barClr=st==='warning'?'var(--danger)':st==='error'?'#ccc':'var(--accent)';
+    const label=st==='error'?'Err':pct+'%';
+    return `<div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+        <span>Kotak ${i+1}</span>
+        <span style="font-weight:600;color:${barClr}">${label}</span>
+      </div>
+      <div style="height:6px;background:var(--border);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${barClr};border-radius:4px;transition:.5s"></div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('stokBars').innerHTML=stokHtml||'<span style="font-size:12px;color:var(--text-secondary)">Menunggu data Nano...</span>';
+
+  // Door status
+  const doorHtml=(d.doors||[]).map((dr,i)=>{
+    const closed=dr?dr.closed:true;
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px">
+      <span style="font-size:18px">${closed?'🚪':'🔓'}</span>
+      <div>
+        <div style="font-weight:600">Pintu ${i+1}</div>
+        <div style="font-size:10px;color:${closed?'var(--success)':'var(--danger)'}">${closed?'Tertutup':'TERBUKA'}</div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('doorStatus').innerHTML=doorHtml||'<span style="font-size:12px;color:var(--text-secondary)">—</span>';
+
+  // Vibration
+  const vibHtml=(d.vibration||[]).map((v,i)=>{
+    const danger=v&&v.level==='danger';
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px">
+      <span style="font-size:18px">${danger?'⚠️':'✅'}</span>
+      <div>
+        <div style="font-weight:600">Sensor ${i+1}</div>
+        <div style="font-size:10px;color:${danger?'var(--danger)':'var(--success)'}">${danger?'BAHAYA':'Aman'}</div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('vibStatus').innerHTML=vibHtml||'<span style="font-size:12px;color:var(--text-secondary)">—</span>';
+
+  // Alert strip
+  const alertStrip=document.getElementById('alertStrip');
+  const activeAlerts=(d.alerts||[]).filter(a=>!a.is_resolved);
+  if(activeAlerts.length){
+    alertStrip.style.display='block';
+    alertStrip.innerHTML='⚠️ Alert: '+activeAlerts.map(a=>a.message).join(' | ');
+  }else{
+    alertStrip.style.display='none';
+  }
+}
+
+function setOffline(lastSeen){
+  const dot=document.getElementById('esp32Dot');
+  const txt=document.getElementById('esp32StatusTxt');
+  dot.style.background='#DC3545';
+  dot.style.boxShadow='none';
+  txt.textContent='Offline';
+  const seen=lastSeen?` · Terakhir: ${new Date(lastSeen).toLocaleTimeString('id-ID')}`:'';
+  document.getElementById('liveNodeInfo').textContent='NODE-A · Tidak ada koneksi'+seen;
+}
+
+// ── KIRIM PERINTAH KE ESP32 ──────────────────────────────────
+async function sendCommand(cmd){
+  const labels={'force_lock':'Kunci Darurat','force_unlock':'Buka Paksa'};
+  if(!confirm(`Kirim perintah "${labels[cmd]||cmd}" ke ESP32?`)) return;
+  try{
+    const res=await fetch('api/esp32_command.php',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({node_id:'NODE-A',command:cmd})
+    });
+    const data=await res.json();
+    alert(data.message||'Perintah dikirim');
+  }catch{
+    alert('Gagal mengirim perintah. Cek koneksi server.');
+  }
+}
+
+// Mulai live polling tiap 5 detik
+refreshLive();
+setInterval(refreshLive, 5000);
+</script>
+</body>
+</html>

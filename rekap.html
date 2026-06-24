@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Rekap Akses - Lemari Arsip</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+<nav class="sidebar">
+  <div class="sidebar-brand"><div class="icon">L</div><div class="info"><h2>Lemari Arsip</h2><span>NODE-A · v2.4</span></div></div>
+  <div class="sidebar-section"><label>Menu Utama</label>
+    <ul class="sidebar-nav">
+      <li><a href="dashboard.html"><span class="icon">📊</span> Dashboard</a></li>
+      <li><a href="rekap.html" class="active"><span class="icon">📋</span> Rekap</a></li>
+    </ul>
+  </div>
+  <div class="sidebar-section"><label>Akun</label>
+    <ul class="sidebar-nav"><li><a href="pengaturan.html"><span class="icon">⚙️</span> Pengaturan Akun</a></li></ul>
+  </div>
+  <div class="sidebar-user">
+    <div class="user-card">
+      <div class="avatar" id="sidebarAvatar" style="background:#2D6A4F">AR</div>
+      <div class="meta"><h4 id="sidebarName">Adm. Rahmadani</h4><span id="sidebarRfid">RFID-001</span><br><span id="sidebarRole">Administrator</span></div>
+    </div>
+    <button class="logout-btn" onclick="logout()">Keluar dari sesi</button>
+  </div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <div class="search"><span>🔍</span><input type="text" placeholder="Cari arsip, ruangan, atau kartu RFID..."></div>
+    <div class="actions"><div class="time-badge"><span>🕐</span><span id="topClock"></span></div></div>
+  </div>
+  <div class="page-header">
+    <div class="breadcrumb">● REKAP AKSES</div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <h1>Data <em>Akses Arsip</em></h1>
+      <button class="btn btn-primary btn-sm" style="width:auto" onclick="exportCSV()">Ekspor CSV</button>
+    </div>
+  </div>
+  <div class="page-content">
+    <div class="stats-row" style="grid-template-columns:repeat(3,1fr)">
+      <div class="stat-card"><div class="label">Total Akses Ditampilkan</div><div class="value" id="sTot">13</div><div class="sub">sesuai filter aktif</div></div>
+      <div class="stat-card highlight"><div class="label">Akses Berhasil</div><div class="value" id="sOk">10 <span style="font-size:14px;font-weight:400">77%</span></div><div class="sub">dari pengguna terdaftar</div></div>
+      <div class="stat-card"><div class="label">Akses Ditolak</div><div class="value" id="sNo" style="color:var(--danger)">3</div><div class="sub">kartu tidak terdaftar</div></div>
+    </div>
+    <div class="card">
+      <div class="filter-bar">
+        <div class="filter-tabs">
+          <button class="filter-tab active" data-f="all">Semua</button>
+          <button class="filter-tab" data-f="success">Berhasil</button>
+          <button class="filter-tab" data-f="rejected">Ditolak</button>
+          <button class="filter-tab active" data-d="all" style="margin-left:12px">Semua waktu</button>
+          <button class="filter-tab" data-d="today">Hari ini</button>
+          <button class="filter-tab" data-d="yesterday">Kemarin</button>
+        </div>
+        <div class="search-input"><span>🔍</span><input type="text" id="searchLog" placeholder="Cari nama, RFID, ruangan..." oninput="filterLogs()"></div>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>#</th><th>Tanggal</th><th>Waktu</th><th>Kartu RFID</th><th>Nama Petugas</th><th>Jabatan</th><th>Ruangan</th><th>Aksi</th><th>Durasi</th><th>Status</th></tr></thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+<script>
+const user=JSON.parse(localStorage.getItem('pedil_user')||'null');
+if(!user)window.location.href='index.html';
+function logout(){localStorage.removeItem('pedil_user');window.location.href='index.html';}
+if(user){document.getElementById('sidebarName').textContent=user.nama_lengkap;document.getElementById('sidebarAvatar').textContent=user.avatar_initials||'U';if(user.avatar_color)document.getElementById('sidebarAvatar').style.background=user.avatar_color;document.getElementById('sidebarRfid').textContent=user.rfid_label||'';document.getElementById('sidebarRole').textContent=user.jabatan||'';}
+
+function updateTopClock(){const d=new Date();const days=['Min','Sen','Sel','Rab','Kam','Jum','Sab'];const months=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];document.getElementById('topClock').textContent=`${String(d.getHours()).padStart(2,'0')}.${String(d.getMinutes()).padStart(2,'0')}  ${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;}
+setInterval(updateTopClock,1000);updateTopClock();
+
+const demoLogs=[
+  {tanggal:'2026-06-04',waktu:'10:45',rfid_label:'RFID-001',nama_petugas:'Adm. Rahmadani',jabatan:'Administrator',ruangan:'Ruangan 1',aksi:'Buka',durasi_menit:12,status:'Berhasil',avatar_initials:'AR',avatar_color:'#2D6A4F'},
+  {tanggal:'2026-06-04',waktu:'10:02',rfid_label:'RFID-003',nama_petugas:'Budi Santoso',jabatan:'Petugas Arsip',ruangan:'Ruangan 2',aksi:'Buka',durasi_menit:8,status:'Berhasil',avatar_initials:'BS',avatar_color:'#D4A017'},
+  {tanggal:'2026-06-04',waktu:'09:12',rfid_label:'RFID-003',nama_petugas:'Budi Santoso',jabatan:'Petugas Arsip',ruangan:'Ruangan 1',aksi:'Tutup',durasi_menit:0,status:'Berhasil',avatar_initials:'BS',avatar_color:'#D4A017'},
+  {tanggal:'2026-06-04',waktu:'08:30',rfid_label:'RFID-001',nama_petugas:'Adm. Rahmadani',jabatan:'Administrator',ruangan:'Ruangan 3',aksi:'Buka',durasi_menit:25,status:'Berhasil',avatar_initials:'AR',avatar_color:'#2D6A4F'},
+  {tanggal:'2026-06-04',waktu:'07:55',rfid_label:'RFID-005',nama_petugas:null,jabatan:null,ruangan:'Ruangan 2',aksi:'Buka',durasi_menit:0,status:'Ditolak',avatar_initials:'?',avatar_color:'#DC3545'},
+  {tanggal:'2026-06-03',waktu:'16:30',rfid_label:'RFID-001',nama_petugas:'Adm. Rahmadani',jabatan:'Administrator',ruangan:'Ruangan 1',aksi:'Buka',durasi_menit:18,status:'Berhasil',avatar_initials:'AR',avatar_color:'#2D6A4F'},
+  {tanggal:'2026-06-03',waktu:'14:20',rfid_label:'RFID-002',nama_petugas:'Siti Aminah',jabatan:'Petugas Arsip',ruangan:'Ruangan 2',aksi:'Buka',durasi_menit:6,status:'Berhasil',avatar_initials:'SA',avatar_color:'#1B4332'},
+  {tanggal:'2026-06-03',waktu:'13:10',rfid_label:'RFID-004',nama_petugas:'Hendra Wijaya',jabatan:'Staf Umum',ruangan:'Ruangan 4',aksi:'Buka',durasi_menit:30,status:'Berhasil',avatar_initials:'HW',avatar_color:'#7B2D8B'},
+  {tanggal:'2026-06-03',waktu:'11:00',rfid_label:'RFID-003',nama_petugas:'Budi Santoso',jabatan:'Petugas Arsip',ruangan:'Ruangan 1',aksi:'Buka',durasi_menit:15,status:'Berhasil',avatar_initials:'BS',avatar_color:'#D4A017'},
+  {tanggal:'2026-06-03',waktu:'09:45',rfid_label:'RFID-006',nama_petugas:null,jabatan:null,ruangan:'Ruangan 3',aksi:'Buka',durasi_menit:0,status:'Ditolak',avatar_initials:'?',avatar_color:'#DC3545'},
+  {tanggal:'2026-06-02',waktu:'15:20',rfid_label:'RFID-001',nama_petugas:'Adm. Rahmadani',jabatan:'Administrator',ruangan:'Ruangan 2',aksi:'Buka',durasi_menit:22,status:'Berhasil',avatar_initials:'AR',avatar_color:'#2D6A4F'},
+  {tanggal:'2026-06-02',waktu:'10:00',rfid_label:'RFID-002',nama_petugas:'Siti Aminah',jabatan:'Petugas Arsip',ruangan:'Ruangan 1',aksi:'Buka',durasi_menit:10,status:'Berhasil',avatar_initials:'SA',avatar_color:'#1B4332'},
+  {tanggal:'2026-06-02',waktu:'08:15',rfid_label:'RFID-005',nama_petugas:null,jabatan:null,ruangan:'Ruangan 1',aksi:'Buka',durasi_menit:0,status:'Ditolak',avatar_initials:'?',avatar_color:'#DC3545'},
+];
+
+let currentFilter='all',currentDate='all';
+document.querySelectorAll('.filter-tab[data-f]').forEach(b=>b.addEventListener('click',function(){document.querySelectorAll('.filter-tab[data-f]').forEach(x=>x.classList.remove('active'));this.classList.add('active');currentFilter=this.dataset.f;renderLogs();}));
+document.querySelectorAll('.filter-tab[data-d]').forEach(b=>b.addEventListener('click',function(){document.querySelectorAll('.filter-tab[data-d]').forEach(x=>x.classList.remove('active'));this.classList.add('active');currentDate=this.dataset.d;renderLogs();}));
+
+function filterLogs(){renderLogs();}
+function renderLogs(){
+  const search=document.getElementById('searchLog').value.toLowerCase();
+  const today=new Date().toISOString().split('T')[0];
+  const yesterday=new Date(Date.now()-86400000).toISOString().split('T')[0];
+  let filtered=demoLogs.filter(l=>{
+    if(currentFilter==='success'&&l.status!=='Berhasil')return false;
+    if(currentFilter==='rejected'&&l.status!=='Ditolak')return false;
+    if(currentDate==='today'&&l.tanggal!==today)return false;
+    if(currentDate==='yesterday'&&l.tanggal!==yesterday)return false;
+    if(search&&!(l.nama_petugas||'').toLowerCase().includes(search)&&!l.rfid_label.toLowerCase().includes(search)&&!l.ruangan.toLowerCase().includes(search))return false;
+    return true;
+  });
+  const ok=filtered.filter(l=>l.status==='Berhasil').length;
+  document.getElementById('sTot').textContent=filtered.length;
+  document.getElementById('sOk').innerHTML=`${ok} <span style="font-size:14px;font-weight:400">${filtered.length?Math.round(ok/filtered.length*100):0}%</span>`;
+  document.getElementById('sNo').textContent=filtered.length-ok;
+  document.getElementById('logBody').innerHTML=filtered.map((l,i)=>`<tr>
+    <td style="color:var(--text-secondary);font-family:monospace">${String(i+1).padStart(3,'0')}</td>
+    <td>${l.tanggal}</td><td>${l.waktu}</td>
+    <td><span class="rfid-tag">${l.rfid_label}</span></td>
+    <td><div class="user-cell"><div class="avatar" style="background:${l.avatar_color}">${l.avatar_initials}</div><span>${l.nama_petugas||'—'}</span></div></td>
+    <td>${l.jabatan||'—'}</td><td>${l.ruangan}</td><td>${l.aksi}</td>
+    <td>${l.durasi_menit?l.durasi_menit+' mnt':'–'}</td>
+    <td><span class="badge ${l.status==='Berhasil'?'badge-success':'badge-danger'}">${l.status==='Berhasil'?'✓ BERHASIL':'✕ DITOLAK'}</span></td>
+  </tr>`).join('');
+}
+renderLogs();
+
+function exportCSV(){
+  let csv='No,Tanggal,Waktu,RFID,Nama,Jabatan,Ruangan,Aksi,Durasi,Status\n';
+  demoLogs.forEach((l,i)=>{csv+=`${i+1},${l.tanggal},${l.waktu},${l.rfid_label},${l.nama_petugas||'-'},${l.jabatan||'-'},${l.ruangan},${l.aksi},${l.durasi_menit},${l.status}\n`;});
+  const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='rekap_akses.csv';a.click();
+}
+</script>
+</body>
+</html>

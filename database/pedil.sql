@@ -3,9 +3,6 @@
 -- Database Schema v2.4
 -- =====================================================
 
-CREATE DATABASE IF NOT EXISTS pedil_db;
-USE pedil_db;
-
 -- Tabel pengguna/petugas
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,

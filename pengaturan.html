@@ -4,6 +4,64 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Pengaturan Akun - Lemari Arsip</title>
 <link rel="stylesheet" href="css/style.css">
+<style>
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+.modal-card {
+  background: white;
+  width: 90%;
+  max-width: 420px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  overflow: hidden;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.modal-header .close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  line-height: 1;
+  padding: 0;
+}
+.modal-header .close-btn:hover {
+  color: var(--danger);
+}
+.modal-body {
+  padding: 20px;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+</style>
 </head>
 <body>
 <div class="app">
@@ -64,20 +122,87 @@
       <p style="font-size:12px;color:var(--text-secondary);margin-bottom:16px">Kata sandi dan autentikasi</p>
       <div class="security-item">
         <div class="info"><h4>Kata Sandi</h4><p>Terakhir diubah 30 hari lalu</p></div>
-        <button class="btn btn-outline btn-sm">Ubah kata sandi</button>
+        <button class="btn btn-outline btn-sm" onclick="alert('Fitur ubah kata sandi dapat dikonfigurasi melalui database administrator.')">Ubah kata sandi</button>
       </div>
       <div class="security-item">
         <div class="info"><h4>Sertifikat RFID</h4><p>Kartu aktif terhubung ke akun ini</p></div>
-        <button class="btn btn-outline btn-sm">Kelola kartu</button>
+        <button class="btn btn-outline btn-sm" onclick="openRfidModal()">Kelola kartu</button>
       </div>
       <div class="security-item">
         <div class="info"><h4>PIN Akses Darurat</h4><p>PIN untuk akses jika RFID gagal</p></div>
-        <button class="btn btn-outline btn-sm">Ubah PIN</button>
+        <button class="btn btn-outline btn-sm" onclick="openPinModal()">Ubah PIN</button>
       </div>
     </div>
   </div>
 </div>
 </div>
+
+<!-- Modal RFID -->
+<div id="rfidModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3>Kelola Kartu RFID</h3>
+      <button class="close-btn" onclick="closeRfidModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-box" id="rfidCurrentInfo" style="margin-bottom:16px;background:var(--accent-light);color:var(--accent);padding:12px;border-radius:6px;font-size:13px">
+        <strong>Kartu Aktif Anda:</strong> <span id="currentRfidUidText">Memuat...</span> (<span id="currentRfidLabelText">Memuat...</span>)
+      </div>
+      
+      <!-- Last Scanned Unregistered Card Injector Section -->
+      <div class="scan-detector" id="scanDetectorBox" style="background:#F3F4F6;padding:12px;border-radius:6px;margin-bottom:16px;font-size:12px;display:none">
+        <div style="font-weight:600;color:var(--text-primary);display:flex;justify-content:space-between;align-items:center">
+          <span>📡 Deteksi Scan Kartu Terakhir:</span>
+          <span style="font-size:10px;background:var(--danger);color:white;padding:2px 6px;border-radius:3px">DITOLAK</span>
+        </div>
+        <div style="margin-top:6px;color:var(--text-secondary)">
+          UID: <code id="detectedRfidUid" style="font-weight:bold;color:var(--danger)"></code> 
+          at <span id="detectedRfidTime" style="font-size:11px"></span>
+        </div>
+        <button class="btn btn-primary btn-sm" style="margin-top:8px;width:100%;font-size:11px" onclick="useDetectedRfid()">
+          📥 Gunakan Kartu Hasil Scan Ini
+        </button>
+      </div>
+      
+      <div class="form-group" style="margin-bottom:12px">
+        <label>UID RFID (Hexadecimal / Angka Unik)</label>
+        <input type="text" class="form-input" id="modalRfidUid" placeholder="Contoh: A1B2C3D4">
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label>Label Kartu (Optional)</label>
+        <input type="text" class="form-input" id="modalRfidLabel" placeholder="Contoh: RFID-ADMIN">
+      </div>
+      
+      <button class="btn btn-primary" onclick="saveRfid()" id="btnSaveRfid" style="width:100%">Simpan & Inject Kartu</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal PIN -->
+<div id="pinModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3>Ubah PIN Akses Darurat</h3>
+      <button class="close-btn" onclick="closePinModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-box" id="pinCurrentInfo" style="margin-bottom:16px;background:var(--accent-light);color:var(--accent);padding:12px;border-radius:6px;font-size:13px">
+        <strong>Status PIN:</strong> <span id="currentPinText">Memuat...</span>
+      </div>
+      
+      <div class="form-group" style="margin-bottom:16px">
+        <label>PIN Baru (4-10 karakter hex/angka, misal: 5D015A atau 123456)</label>
+        <input type="text" class="form-input" id="modalPinCode" placeholder="Masukkan PIN baru" maxlength="10">
+        <span style="font-size:11px;color:var(--text-secondary);margin-top:4px;display:block">
+          PIN digunakan pada Keypad fisik lemari arsip jika tidak membawa kartu RFID.
+        </span>
+      </div>
+      
+      <button class="btn btn-primary" onclick="savePin()" id="btnSavePin" style="width:100%">Simpan & Inject PIN</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const user=JSON.parse(localStorage.getItem('pedil_user')||'null');
 if(!user)window.location.href='index.html';
@@ -97,6 +222,135 @@ if(user){
 }
 function updateTopClock(){const d=new Date();const days=['Min','Sen','Sel','Rab','Kam','Jum','Sab'];const months=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];document.getElementById('topClock').textContent=`${String(d.getHours()).padStart(2,'0')}.${String(d.getMinutes()).padStart(2,'0')}  ${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;}
 setInterval(updateTopClock,1000);updateTopClock();
+
+// Credentials Management
+async function loadCredentials() {
+  try {
+    const res = await fetch('api/manage_credential.php');
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    if (data.success) {
+      if (data.current_rfid) {
+        document.getElementById('currentRfidUidText').textContent = data.current_rfid.uid;
+        document.getElementById('currentRfidLabelText').textContent = data.current_rfid.label;
+        document.getElementById('modalRfidUid').value = data.current_rfid.uid;
+        document.getElementById('modalRfidLabel').value = data.current_rfid.label;
+        
+        const rfidBadge = document.getElementById('profileRfid');
+        if (rfidBadge) rfidBadge.textContent = data.current_rfid.label;
+        
+        const u = JSON.parse(localStorage.getItem('pedil_user') || '{}');
+        u.rfid_uid = data.current_rfid.uid;
+        u.rfid_label = data.current_rfid.label;
+        localStorage.setItem('pedil_user', JSON.stringify(u));
+        document.getElementById('sidebarRfid').textContent = data.current_rfid.label;
+      } else {
+        document.getElementById('currentRfidUidText').textContent = 'Belum terdaftar';
+        document.getElementById('currentRfidLabelText').textContent = '—';
+        document.getElementById('modalRfidUid').value = '';
+        document.getElementById('modalRfidLabel').value = '';
+      }
+
+      if (data.current_pin) {
+        document.getElementById('currentPinText').textContent = 'AKTIF (Telah diset)';
+        document.getElementById('modalPinCode').value = data.current_pin;
+      } else {
+        document.getElementById('currentPinText').textContent = 'Belum dikonfigurasi';
+        document.getElementById('modalPinCode').value = '';
+      }
+
+      if (data.last_scanned_rfid) {
+        document.getElementById('detectedRfidUid').textContent = data.last_scanned_rfid.uid;
+        document.getElementById('detectedRfidTime').textContent = data.last_scanned_rfid.timestamp;
+        document.getElementById('scanDetectorBox').style.display = 'block';
+      } else {
+        document.getElementById('scanDetectorBox').style.display = 'none';
+      }
+    }
+  } catch (e) {
+    console.error('Gagal memuat kredensial:', e);
+  }
+}
+
+function openRfidModal() {
+  document.getElementById('rfidModal').style.display = 'flex';
+  loadCredentials();
+}
+function closeRfidModal() {
+  document.getElementById('rfidModal').style.display = 'none';
+}
+function useDetectedRfid() {
+  const uid = document.getElementById('detectedRfidUid').textContent;
+  document.getElementById('modalRfidUid').value = uid;
+}
+async function saveRfid() {
+  const uid = document.getElementById('modalRfidUid').value.trim();
+  const label = document.getElementById('modalRfidLabel').value.trim();
+  if(!uid) {
+    alert('UID RFID tidak boleh kosong');
+    return;
+  }
+  const btn = document.getElementById('btnSaveRfid');
+  btn.disabled = true;
+  btn.textContent = 'Menyimpan...';
+  try {
+    const res = await fetch('api/manage_credential.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update_rfid', rfid_uid: uid, rfid_label: label })
+    });
+    const data = await res.json();
+    alert(data.message);
+    if (data.success) {
+      closeRfidModal();
+      loadCredentials();
+    }
+  } catch(e) {
+    alert('Gagal menyimpan kartu RFID');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Simpan & Inject Kartu';
+  }
+}
+
+function openPinModal() {
+  document.getElementById('pinModal').style.display = 'flex';
+  loadCredentials();
+}
+function closePinModal() {
+  document.getElementById('pinModal').style.display = 'none';
+}
+async function savePin() {
+  const pin = document.getElementById('modalPinCode').value.trim();
+  if(!pin) {
+    alert('PIN tidak boleh kosong');
+    return;
+  }
+  const btn = document.getElementById('btnSavePin');
+  btn.disabled = true;
+  btn.textContent = 'Menyimpan...';
+  try {
+    const res = await fetch('api/manage_credential.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update_pin', pin_code: pin })
+    });
+    const data = await res.json();
+    alert(data.message);
+    if (data.success) {
+      closePinModal();
+      loadCredentials();
+    }
+  } catch(e) {
+    alert('Gagal menyimpan PIN');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Simpan & Inject PIN';
+  }
+}
+
+// Initial load
+loadCredentials();
 </script>
 </body>
 </html>

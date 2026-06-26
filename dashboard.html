@@ -60,7 +60,7 @@
       <div class="stat-card highlight">
         <div class="label">Okupansi Keseluruhan</div>
         <div class="value" id="statOccupancy">61% <span class="change">+3%</span></div>
-        <div class="sub" id="statOccSub">153 dari 252 slot</div>
+        <div class="sub" id="statOccSub">Rata-rata kapasitas lemari</div>
       </div>
       <div class="stat-card">
         <div class="label">Pintu Terbuka</div>
@@ -231,7 +231,7 @@ setInterval(loadDashboard, 30000); // refresh tiap 30 detik
 // ── RENDER DASHBOARD ─────────────────────────────────────────
 function renderDashboard(d){
   document.getElementById('statOccupancy').innerHTML=`${d.occupancy.pct}% <span class="change">+3%</span>`;
-  document.getElementById('statOccSub').textContent=`${d.occupancy.filled} dari ${d.occupancy.total} slot`;
+  document.getElementById('statOccSub').textContent=`Rata-rata kapasitas dari sensor`;
   document.getElementById('statDoors').textContent=d.open_doors;
   document.getElementById('statAccess').innerHTML=`${d.access_today.count} <span class="change">+${Math.max(0,d.access_today.count-16)}</span>`;
   document.getElementById('statAccessSub').textContent=`dari ${d.access_today.users} pengguna aktif`;
@@ -263,13 +263,13 @@ function renderDashboard(d){
 
   if(d.rooms&&d.rooms.length){
     const roomHtml=d.rooms.map(r=>{
-      const pct=Math.round(r.slot_terisi/r.total_slot*100);
+      const pct=r.total_slot>0?Math.round(r.slot_terisi/r.total_slot*100):0;
       const circumference=2*Math.PI*18;
       const offset=circumference-(pct/100)*circumference;
       const statusBg=r.status==='Hampir Penuh'||r.status==='Penuh'?'#FEE2E2':'var(--accent-light)';
       const statusClr=r.status==='Hampir Penuh'||r.status==='Penuh'?'var(--danger)':'var(--accent)';
       const lastAcc=r.last_access?new Date(r.last_access).toLocaleString('id-ID',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Belum ada';
-      return `<div class="room-card"><div class="room-pct"><svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" stroke="var(--border)" stroke-width="4" fill="none"/><circle cx="24" cy="24" r="18" stroke="var(--accent)" stroke-width="4" fill="none" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round"/></svg><div class="pct-text">${pct}%</div></div><div class="room-info"><h3>${r.nama_ruangan}</h3><div class="meta">${r.kode_ruangan} · ${r.deskripsi} · ${r.lantai}</div><div class="slots">${r.slot_terisi}/${r.total_slot} slot terisi</div></div><span class="badge" style="background:${statusBg};color:${statusClr}">${r.status.toUpperCase()}</span><div class="room-access">Akses: ${lastAcc}</div></div>`;
+      return `<div class="room-card"><div class="room-pct"><svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" stroke="var(--border)" stroke-width="4" fill="none"/><circle cx="24" cy="24" r="18" stroke="var(--accent)" stroke-width="4" fill="none" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round"/></svg><div class="pct-text">${pct}%</div></div><div class="room-info"><h3>${r.nama_ruangan}</h3><div class="meta">${r.kode_ruangan} · ${r.deskripsi} · ${r.lantai}</div><div class="slots">Kapasitas: ${pct}%</div></div><span class="badge" style="background:${statusBg};color:${statusClr}">${r.status.toUpperCase()}</span><div class="room-access">Akses: ${lastAcc}</div></div>`;
     }).join('');
     document.getElementById('roomCards').innerHTML=roomHtml;
   }

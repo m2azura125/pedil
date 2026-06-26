@@ -1,0 +1,9 @@
+# Ignore database configuration
+api/config.php
+
+# Ignore IDE settings & OS junk
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+.DS_Store

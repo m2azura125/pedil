@@ -14,7 +14,14 @@ if ($method === 'GET') {
     if ($date === 'today') { $where .= " AND a.tanggal = CURDATE()"; }
     elseif ($date === 'yesterday') { $where .= " AND a.tanggal = DATE_SUB(CURDATE(), INTERVAL 1 DAY)"; }
     if (!empty($search)) { $where .= " AND (a.nama_petugas LIKE ? OR a.rfid_label LIKE ? OR a.ruangan LIKE ?)"; $params = array_merge($params, ["%$search%","%$search%","%$search%"]); }
-    $stmt = $db->prepare("SELECT a.* FROM access_logs a WHERE $where ORDER BY a.tanggal DESC, a.waktu DESC LIMIT 100");
+    $stmt = $db->prepare(
+        "SELECT a.*, u.avatar_initials, u.avatar_color
+         FROM access_logs a
+         LEFT JOIN users u ON a.user_id = u.id
+         WHERE $where
+         ORDER BY a.tanggal DESC, a.waktu DESC
+         LIMIT 100"
+    );
     $stmt->execute($params);
     $logs = $stmt->fetchAll();
     $total = count($logs);

@@ -146,19 +146,7 @@
       </div>
     </div>
 
-    <!-- Status Row -->
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-title">Status Ruangan</div>
-        <div class="card-subtitle">Tingkat okupansi dan aktivitas terakhir</div>
-        <div id="roomCards"></div>
-      </div>
-      <div class="card">
-        <div class="card-title">Peta Aktivitas Mingguan</div>
-        <div class="card-subtitle">Intensitas akses per jam · 7 hari terakhir</div>
-        <div id="heatmapContainer" style="overflow-x:auto"></div>
-      </div>
-    </div>
+
   </div>
 </div>
 </div>
@@ -279,30 +267,7 @@ function renderDashboard(d){
     document.getElementById('trendAvg').innerHTML=`Rata-rata ${avg} akses/hari`;
   }
 
-  if(d.rooms&&d.rooms.length){
-    const roomHtml=d.rooms.map(r=>{
-      const pct=r.total_slot>0?Math.round(r.slot_terisi/r.total_slot*100):0;
-      const circumference=2*Math.PI*18;
-      const offset=circumference-(pct/100)*circumference;
-      const statusBg=r.status==='Hampir Penuh'||r.status==='Penuh'?'#FEE2E2':'var(--accent-light)';
-      const statusClr=r.status==='Hampir Penuh'||r.status==='Penuh'?'var(--danger)':'var(--accent)';
-      const lastAcc=r.last_access?new Date(r.last_access).toLocaleString('id-ID',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Belum ada';
-      return `<div class="room-card"><div class="room-pct"><svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" stroke="var(--border)" stroke-width="4" fill="none"/><circle cx="24" cy="24" r="18" stroke="var(--accent)" stroke-width="4" fill="none" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round"/></svg><div class="pct-text">${pct}%</div></div><div class="room-info"><h3>${r.nama_ruangan}</h3><div class="meta">${r.kode_ruangan} · ${r.deskripsi} · ${r.lantai}</div><div class="slots">Kapasitas: ${pct}%</div></div><span class="badge" style="background:${statusBg};color:${statusClr}">${r.status.toUpperCase()}</span><div class="room-access">Akses: ${lastAcc}</div></div>`;
-    }).join('');
-    document.getElementById('roomCards').innerHTML=roomHtml;
-  }
 
-  // Heatmap (tetap acak untuk ilustrasi)
-  const hours=Array.from({length:12},(_,i)=>i+7);
-  const hDays=['Sen','Sel','Rab','Kam','Jum','Sab','Min'];
-  let heatHtml='<div style="display:grid;grid-template-columns:40px repeat('+hours.length+',1fr);gap:3px">';
-  heatHtml+='<div></div>'+hours.map(h=>`<div style="font-size:9px;text-align:center;color:var(--text-secondary)">${String(h).padStart(2,'0')}</div>`).join('');
-  hDays.forEach(day=>{
-    heatHtml+=`<div style="font-size:10px;color:var(--text-secondary);display:flex;align-items:center">${day}</div>`;
-    hours.forEach(()=>{const v=Math.random();const bg=v<.2?'#E5E0DB':v<.4?'#D4EDDA':v<.6?'#A7D8C0':v<.8?'#52B788':'#2D6A4F';heatHtml+=`<div class="heatmap-cell" style="background:${bg}"></div>`;});
-  });
-  heatHtml+='</div><div style="margin-top:8px;font-size:10px;color:var(--text-secondary)">sedikit <span style="display:inline-flex;gap:2px">'+['#E5E0DB','#D4EDDA','#A7D8C0','#52B788','#2D6A4F'].map(c=>`<span style="width:10px;height:10px;border-radius:2px;background:${c};display:inline-block"></span>`).join('')+'</span> banyak</div>';
-  document.getElementById('heatmapContainer').innerHTML=heatHtml;
 }
 
 // ── LIVE MONITOR ESP32 ───────────────────────────────────────

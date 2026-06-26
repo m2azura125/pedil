@@ -204,6 +204,24 @@
 </div>
 
 <script>
+async function validateSession() {
+  try {
+    const res = await fetch('api/login.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'check_session' })
+    });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    if (!data.authenticated) throw new Error();
+    localStorage.setItem('pedil_user', JSON.stringify(data.user));
+  } catch (e) {
+    localStorage.removeItem('pedil_user');
+    window.location.href = 'index.html';
+  }
+}
+validateSession();
+
 const user=JSON.parse(localStorage.getItem('pedil_user')||'null');
 if(!user)window.location.href='index.html';
 function logout(){localStorage.removeItem('pedil_user');window.location.href='index.html';}
@@ -299,7 +317,17 @@ async function saveRfid() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'update_rfid', rfid_uid: uid, rfid_label: label })
     });
-    const data = await res.json();
+    
+    let data;
+    try {
+      data = await res.json();
+    } catch(jsonErr) {
+      const text = await res.text();
+      console.error('Respon server bukan JSON:', text);
+      alert('Gagal menyimpan kartu RFID: Terjadi kesalahan server.');
+      return;
+    }
+    
     alert(data.message);
     if (data.success) {
       closeRfidModal();

@@ -73,6 +73,9 @@ if ($method === 'POST') {
         // Mulai transaksi database
         $db->beginTransaction();
         try {
+            // Bebaskan kartu UID ini dari user lain terlebih dahulu untuk menghindari UNIQUE constraint violation
+            $db->prepare("UPDATE users SET rfid_uid = NULL, rfid_label = NULL WHERE rfid_uid = ?")->execute([$rfid_uid]);
+
             // Nonaktifkan kartu lama milik user ini
             $db->prepare("UPDATE rfid_cards SET user_id = NULL, is_active = 0 WHERE user_id = ?")->execute([$user_id]);
 
@@ -103,7 +106,7 @@ if ($method === 'POST') {
 
             $db->commit();
             jsonResponse(['success' => true, 'message' => 'Kartu RFID berhasil di-inject ke akun Anda']);
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $db->rollBack();
             jsonResponse(['success' => false, 'message' => 'Gagal menyimpan kartu RFID: ' . $e->getMessage()], 500);
         }
@@ -140,7 +143,7 @@ if ($method === 'POST') {
 
             $db->commit();
             jsonResponse(['success' => true, 'message' => 'PIN akses darurat berhasil di-update secara global untuk semua akun']);
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             $db->rollBack();
             jsonResponse(['success' => false, 'message' => 'Gagal menyimpan PIN: ' . $e->getMessage()], 500);
         }

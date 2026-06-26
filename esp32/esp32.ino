@@ -516,6 +516,13 @@ void parseNanoData() {
       if (i < 3) Serial.print(" | ");
     }
     Serial.println();
+    Serial.print("Stok % : ");
+    for (int i = 0; i < 4; i++) {
+      if (stokPct[i] < 0) Serial.print("-1%");
+      else { Serial.print(stokPct[i]); Serial.print("%"); }
+      if (i < 3) Serial.print(" | ");
+    }
+    Serial.println();
     Serial.print("Pintu  : 1=");
     Serial.print(dsRecv[0] == 0 ? "TUTUP" : "BUKA ");
     Serial.print("  2=");

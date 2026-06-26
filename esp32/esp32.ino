@@ -468,13 +468,6 @@ void parseNanoData() {
   raw.trim();
   if (raw.length() == 0) return;
 
-  // Tampilkan data mentah dari Nano ke Serial Monitor ESP32 tiap 2 detik untuk mempermudah debug
-  static unsigned long lastRawPrintMs = 0;
-  if (millis() - lastRawPrintMs > 2000) {
-    Serial.println("[NANO] Raw Data: " + raw);
-    lastRawPrintMs = millis();
-  }
-
   // Validasi: harus ada 7 koma (8 nilai)
   int komaCount = 0;
   for (char c : raw) if (c == ',') komaCount++;
@@ -492,6 +485,28 @@ void parseNanoData() {
   dsRecv[0]=vals[4];  dsRecv[1]=vals[5];
   vibRecv[0]=vals[6]; vibRecv[1]=vals[7];
   lastNanoMs = millis(); nanoOK = true;
+
+  // Tampilkan data hasil parsing dari Nano ke Serial Monitor ESP32 tiap 2 detik
+  static unsigned long lastRawPrintMs = 0;
+  if (millis() - lastRawPrintMs > 2000) {
+    Serial.println("------------------------------------------");
+    Serial.print("Stok   : ");
+    for (int i = 0; i < 4; i++) {
+      if (stokPct[i] < 0) Serial.print("ERR");
+      else { Serial.print(stokPct[i]); Serial.print("%"); }
+      if (i < 3) Serial.print(" | ");
+    }
+    Serial.println();
+    Serial.print("Pintu  : 1=");
+    Serial.print(dsRecv[0] == 0 ? "TUTUP" : "BUKA ");
+    Serial.print("  2=");
+    Serial.println(dsRecv[1] == 0 ? "TUTUP" : "BUKA");
+    Serial.print("Getaran: 1=");
+    Serial.print(vibRecv[0] == 1 ? "TERDETEKSI" : "diam");
+    Serial.print("  2=");
+    Serial.println(vibRecv[1] == 1 ? "TERDETEKSI" : "diam");
+    lastRawPrintMs = millis();
+  }
 }
 #endif
 

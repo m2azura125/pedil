@@ -47,7 +47,7 @@
 #define VIB2     11
 
 // ── THRESHOLD GETARAN (kalibrasi via Serial Monitor) ───────
-#define THRESHOLD_VIB  3000
+#define THRESHOLD_VIB  600
 
 // ── SERIAL KE ESP32 ────────────────────────────────────────
 // A0=RX (tidak dipakai), A1=TX -> voltage divider -> GPIO34

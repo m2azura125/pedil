@@ -78,7 +78,7 @@ const unsigned long LOCKOUT_MS     = 300000;
 const unsigned long DS_DEBOUNCE_MS = 1000;
 
 const int VIB_WINDOW_MS  = 2000;
-const int VIB_DANGER_CNT = 5;
+const int VIB_DANGER_CNT = 3;
 
 // ============================================================
 //  STATE MACHINE (tidak berubah dari v4)
@@ -807,7 +807,7 @@ void handleKeypad() {
       door1BukaMs=door2BukaMs=millis();
       setLCD("PINTU TERBUKA","Silakan akses...");
     } else {
-      pinGagal++; beep(2,120);
+      pinGagal++; beep(1, 1000);
       logSerial("PIN_GAGAL", String(pinGagal)+"/3");
       if (pinGagal>=3) {
         sysState=S_LOCKOUT; lockoutStartMs=millis();

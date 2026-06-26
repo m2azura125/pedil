@@ -300,6 +300,37 @@ bool verifyRfidWeb(String uidHex, String &outUser, bool &httpOK) {
   return false;
 }
 
+// Verifikasi PIN ke web, return true jika authorized
+// httpOK = false jika koneksi error -> fallback ke PIN lokal
+bool verifyPinWeb(String pin, String &outUser, bool &httpOK) {
+  httpOK = false;
+  if (!wifiOK || WiFi.status() != WL_CONNECTED) return false;
+  HTTPClient http;
+  http.begin(String(SERVER_URL) + "/rfid_auth.php");
+  http.addHeader("Content-Type", "application/json");
+  http.setConnectTimeout(1000);
+  http.setTimeout(1000);
+  String body = "{\"action\":\"verify_pin\",\"pin\":\"" + pin +
+                "\",\"room_id\":" + String(ROOM_ID) + "}";
+  int code = http.POST(body);
+  httpOK = (code > 0);
+  if (code == 200) {
+    String resp = http.getString();
+    http.end();
+    if (resp.indexOf("\"authorized\":true") >= 0) {
+      int u = resp.indexOf("\"user\":\"");
+      if (u >= 0) {
+        int st = u + 8;
+        outUser = resp.substring(st, resp.indexOf("\"", st));
+      }
+      return true;
+    }
+    return false;
+  }
+  http.end();
+  return false;
+}
+
 // Kirim data sensor ke web (hanya saat idle, tidak ganggu interaksi)
 void sendSensorData() {
   if (!wifiOK || WiFi.status() != WL_CONNECTED) return;
@@ -751,10 +782,25 @@ void handleKeypad() {
 
   if (key=='*') {
     pinBuf[pinLen]='\0';
-    bool cocok=(strcmp(pinBuf,PIN_BENAR)==0);
-    if (cocok) {
-      rfidGagal=0; pinGagal=0; logSerial("PIN_OK"); beep(3,60);
-      setLCD("AKSES DITERIMA!","Selamat datang!");
+    bool valid = false;
+    String aksesUser = "";
+    if (wifiOK) {
+      bool httpOK = false;
+      valid = verifyPinWeb(pinBuf, aksesUser, httpOK);
+      if (!httpOK) {
+        // Fallback ke local PIN jika koneksi web bermasalah
+        valid = (strcmp(pinBuf, PIN_BENAR) == 0);
+      }
+    } else {
+      // Fallback ke local PIN jika offline
+      valid = (strcmp(pinBuf, PIN_BENAR) == 0);
+    }
+
+    if (valid) {
+      rfidGagal=0; pinGagal=0;
+      logSerial("PIN_OK", aksesUser.length() ? aksesUser : "PIN Lokal");
+      beep(3,60);
+      setLCD("AKSES DITERIMA!", aksesUser.length() ? aksesUser.substring(0,16) : "Selamat datang!");
       delay(1000);
       digitalWrite(RELAY,HIGH); relayOpen=true;
       sysState=S_DOOR_OPEN; door1Open=true; door2Open=true;
@@ -762,7 +808,7 @@ void handleKeypad() {
       setLCD("PINTU TERBUKA","Silakan akses...");
     } else {
       pinGagal++; beep(2,120);
-      logSerial("PIN_GAGAL",String(pinGagal)+"/3");
+      logSerial("PIN_GAGAL", String(pinGagal)+"/3");
       if (pinGagal>=3) {
         sysState=S_LOCKOUT; lockoutStartMs=millis();
         logSerial("LOCKOUT_MULAI"); setLCD("SISTEM DIKUNCI!","Tunggu 5 menit  ");

@@ -785,6 +785,9 @@ void handleDoor() {
   if (sysState!=S_DOOR_OPEN) return;
   if (!relayOpen) return;
 
+  // Abaikan trigger sensor pintu selama 4 detik pertama agar pengguna sempat menarik pintu
+  if (millis() - door1BukaMs < 4000) return;
+
   bool triggered=doorTerbuka(1)||doorTerbuka(2);
   if (triggered) {
     digitalWrite(RELAY,LOW); relayOpen=false;

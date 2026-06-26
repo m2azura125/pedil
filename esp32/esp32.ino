@@ -77,7 +77,7 @@ const unsigned long ALARM_MS       = 60000;
 const unsigned long LOCKOUT_MS     = 300000;
 const unsigned long DS_DEBOUNCE_MS = 1000;
 
-const int VIB_WINDOW_MS  = 2000;
+const int VIB_WINDOW_MS  = 10000;
 const int VIB_DANGER_CNT = 3;
 
 // ============================================================
@@ -874,8 +874,19 @@ void handleStok() {
 void handleVibration() {
   for (int i=0;i<2;i++) {
     bool now=(vibRecv[i]==1);
-    if (millis()-vibWin[i]>(unsigned long)VIB_WINDOW_MS) {vibCnt[i]=0; vibWin[i]=millis();}
-    if (now&&!vibPrev[i]) vibCnt[i]++;
+    if (millis()-vibWin[i]>(unsigned long)VIB_WINDOW_MS) {
+      if (vibCnt[i] > 0) {
+        Serial.print("[VIB] Window reset untuk Sensor "); Serial.println(i+1);
+      }
+      vibCnt[i]=0; 
+      vibWin[i]=millis();
+    }
+    if (now&&!vibPrev[i]) {
+      vibCnt[i]++;
+      Serial.print("[VIB] Sensor "); Serial.print(i+1);
+      Serial.print(" terdeteksi! Count: "); Serial.print(vibCnt[i]);
+      Serial.println("/3");
+    }
     vibPrev[i]=now;
     if (vibCnt[i]>=VIB_DANGER_CNT) {
       logSerial("GETARAN_BAHAYA","Sensor "+String(i+1));

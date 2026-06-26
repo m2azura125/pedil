@@ -117,6 +117,15 @@ Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, KP_ROWS, KP_COLS);
 //  VARIABEL (tidak berubah dari v4)
 // ============================================================
 int  stokPct[4]  = {100,100,100,100};
+int  sensorCm[4] = {0,0,0,0};
+const int STOK_PENUH_CM  = 8;
+const int STOK_KOSONG_CM = 38;
+
+int hitungPct(long cm) {
+  if (cm < 0) return -1;
+  return constrain(map(cm, STOK_KOSONG_CM, STOK_PENUH_CM, 0, 100), 0, 100);
+}
+
 int  dsRecv[2]   = {1,1};
 int  vibRecv[2]  = {0,0};
 bool nanoOK      = false;
@@ -459,7 +468,10 @@ void parseNanoData() {
   if (!Serial2.available()) {
     if (millis() - lastNanoMs > 3000 && nanoOK) {
       nanoOK = false;
-      for (int i=0; i<4; i++) stokPct[i] = -1;
+      for (int i=0; i<4; i++) {
+        stokPct[i] = -1;
+        sensorCm[i] = -1;
+      }
       Serial.println("[NANO] Koneksi terputus!");
     }
     return;
@@ -480,8 +492,14 @@ void parseNanoData() {
     vals[i] = raw.substring(prev, c).toInt();
     prev = c+1;
   }
-  stokPct[0]=vals[0]; stokPct[1]=vals[1];
-  stokPct[2]=vals[2]; stokPct[3]=vals[3];
+  sensorCm[0]=vals[0]; sensorCm[1]=vals[1];
+  sensorCm[2]=vals[2]; sensorCm[3]=vals[3];
+  
+  // Hitung persentase stok secara lokal di ESP32 agar sinkronisasi web tetap jalan
+  for (int i=0; i<4; i++) {
+    stokPct[i] = hitungPct(sensorCm[i]);
+  }
+  
   dsRecv[0]=vals[4];  dsRecv[1]=vals[5];
   vibRecv[0]=vals[6]; vibRecv[1]=vals[7];
   lastNanoMs = millis(); nanoOK = true;
@@ -490,10 +508,10 @@ void parseNanoData() {
   static unsigned long lastRawPrintMs = 0;
   if (millis() - lastRawPrintMs > 2000) {
     Serial.println("------------------------------------------");
-    Serial.print("Stok   : ");
+    Serial.print("Jarak  : ");
     for (int i = 0; i < 4; i++) {
-      if (stokPct[i] < 0) Serial.print("ERR");
-      else { Serial.print(stokPct[i]); Serial.print("%"); }
+      if (sensorCm[i] < 0) Serial.print("-1cm");
+      else { Serial.print(sensorCm[i]); Serial.print("cm"); }
       if (i < 3) Serial.print(" | ");
     }
     Serial.println();

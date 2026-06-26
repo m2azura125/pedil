@@ -130,11 +130,11 @@ void loop() {
   vibCount1 = 0;
   vibCount2 = 0;
 
-  // Kirim ke ESP32
-  String data = String(hitungPct(s1)) + "," +
-                String(hitungPct(s2)) + "," +
-                String(hitungPct(s3)) + "," +
-                String(hitungPct(s4)) + "," +
+  // Kirim ke ESP32 (kirim data cm mentah)
+  String data = String(s1) + "," +
+                String(s2) + "," +
+                String(s3) + "," +
+                String(s4) + "," +
                 String(ds1)  + "," + String(ds2)  + "," +
                 String(vib1) + "," + String(vib2);
   espSerial.println(data);

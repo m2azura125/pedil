@@ -118,11 +118,12 @@ Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, KP_ROWS, KP_COLS);
 // ============================================================
 int  stokPct[4]  = {100,100,100,100};
 int  sensorCm[4] = {0,0,0,0};
-const int STOK_PENUH_CM  = 8;
-const int STOK_KOSONG_CM = 38;
+const int STOK_PENUH_CM  = 79;
+const int STOK_KOSONG_CM = 0;
 
 int hitungPct(long cm) {
   if (cm < 0) return -1;
+  if (cm >= STOK_PENUH_CM) return 100;
   return constrain(map(cm, STOK_KOSONG_CM, STOK_PENUH_CM, 0, 100), 0, 100);
 }
 

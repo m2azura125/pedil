@@ -54,8 +54,8 @@
 SoftwareSerial espSerial(A0, A1);
 
 // ── KONFIGURASI STOK ───────────────────────────────────────
-const int STOK_PENUH_CM  = 8;
-const int STOK_KOSONG_CM = 38;
+const int STOK_PENUH_CM  = 79;
+const int STOK_KOSONG_CM = 0;
 
 // ── VARIABEL ───────────────────────────────────────────────
 unsigned long lastKirimMs  = 0;
@@ -75,6 +75,7 @@ long bacaUS(int echoPin) {
 
 int hitungPct(long cm) {
   if (cm < 0) return -1;
+  if (cm >= STOK_PENUH_CM) return 100;
   return constrain(map(cm, STOK_KOSONG_CM, STOK_PENUH_CM, 0, 100), 0, 100);
 }
 

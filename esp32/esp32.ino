@@ -594,7 +594,7 @@ void handleRFID() {
       setLCD("KARTU TERSIMPAN!", uidStr.substring(0,16));
       delay(2000);
       enrollKartuWeb(uidStr);
-      setLCD("Scan kartu lagi", "atau D utk batal");
+      setLCD("Scan kartu lagi", "atau B utk batal");
     } else {
       int jml = bacaJumlahKartu();
       Serial.println("========================================");
@@ -612,7 +612,7 @@ void handleRFID() {
       }
       Serial.println("========================================");
       delay(2000);
-      setLCD("Scan kartu baru", "atau D utk batal");
+      setLCD("Scan kartu baru", "atau B utk batal");
     }
     return;
   }
@@ -695,13 +695,13 @@ void handleKeypad() {
   if (!key) return;
 
   if (sysState == S_ENROLL) {
-    if (key == 'D') { logSerial("ENROLL_BATAL"); beep(1, 50); resetKeIdle(); }
+    if (key == 'B') { logSerial("ENROLL_BATAL"); beep(1, 50); resetKeIdle(); }
     return;
   }
 
   if (sysState == S_ENROLL_PIN) {
-    if (key=='A'||key=='B'||key=='C'||key=='D') {
-      if (key=='D') { logSerial("ENROLL_PIN_BATAL"); beep(1,50); resetKeIdle(); }
+    if (key=='B') { logSerial("ENROLL_PIN_BATAL"); beep(1,50); resetKeIdle(); return; }
+    if (key=='A'||key=='C'||key=='D') {
       return;
     }
     if (key=='#') {
@@ -719,7 +719,7 @@ void handleKeypad() {
         int jml=bacaJumlahKartu();
         setLCD("MODE ENROLL","Slot:"+String(jml)+"/"+String(MAX_KARTU));
         delay(1200);
-        setLCD("Scan kartu baru","D = batal       ");
+        setLCD("Scan kartu baru","B = batal       ");
       } else {
         logSerial("ENROLL_PIN_SALAH"); beep(2,150);
         setLCD("PIN SALAH!","Enroll dibatal..");
@@ -732,7 +732,7 @@ void handleKeypad() {
   }
 
   if (sysState==S_IDLE) {
-    if (key=='D') {
+    if (key=='B') {
       pinLen=0; memset(pinBuf,0,sizeof(pinBuf));
       sysState=S_ENROLL_PIN; logSerial("ENROLL_MINTA_PIN"); beep(1,60);
       setLCD("PIN Enroll:","                ");

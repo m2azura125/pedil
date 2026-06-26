@@ -874,14 +874,17 @@ void handleStok() {
 void handleVibration() {
   for (int i=0;i<2;i++) {
     bool now=(vibRecv[i]==1);
-    if (millis()-vibWin[i]>(unsigned long)VIB_WINDOW_MS) {
-      if (vibCnt[i] > 0) {
-        Serial.print("[VIB] Window reset untuk Sensor "); Serial.println(i+1);
-      }
-      vibCnt[i]=0; 
-      vibWin[i]=millis();
+    
+    // Cek timeout hanya jika counter > 0
+    if (vibCnt[i] > 0 && (millis() - vibWin[i] > (unsigned long)VIB_WINDOW_MS)) {
+      Serial.print("[VIB] Window reset untuk Sensor "); Serial.println(i+1);
+      vibCnt[i] = 0;
     }
+    
     if (now&&!vibPrev[i]) {
+      if (vibCnt[i] == 0) {
+        vibWin[i] = millis(); // Mulai window waktu pada ketukan pertama
+      }
       vibCnt[i]++;
       Serial.print("[VIB] Sensor "); Serial.print(i+1);
       Serial.print(" terdeteksi! Count: "); Serial.print(vibCnt[i]);

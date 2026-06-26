@@ -33,7 +33,7 @@
 // ────────────────────────────────────────────────────────────
 
 // Uncomment untuk aktifkan Nano (setelah Nano terverifikasi)
-// #define USE_NANO
+#define USE_NANO
 
 #include <SPI.h>
 #include <Wire.h>
@@ -467,6 +467,13 @@ void parseNanoData() {
   String raw = Serial2.readStringUntil('\n');
   raw.trim();
   if (raw.length() == 0) return;
+
+  // Tampilkan data mentah dari Nano ke Serial Monitor ESP32 tiap 2 detik untuk mempermudah debug
+  static unsigned long lastRawPrintMs = 0;
+  if (millis() - lastRawPrintMs > 2000) {
+    Serial.println("[NANO] Raw Data: " + raw);
+    lastRawPrintMs = millis();
+  }
 
   // Validasi: harus ada 7 koma (8 nilai)
   int komaCount = 0;

@@ -545,7 +545,7 @@ void handleRFID() {
       beep(2, 80);
       setLCD("KARTU TERSIMPAN!", uidStr.substring(0,16));
       delay(2000);
-      enrollKartuWeb(uidToHex(uid, size));
+      enrollKartuWeb(uidStr);
       setLCD("Scan kartu lagi", "atau D utk batal");
     } else {
       int jml = bacaJumlahKartu();
@@ -577,7 +577,7 @@ void handleRFID() {
 
   if (wifiOK) {
     bool httpOK = false;
-    valid = verifyRfidWeb(uidToHex(uid, size), aksesUser, httpOK);
+    valid = verifyRfidWeb(uidStr, aksesUser, httpOK);
     if (!httpOK) {
       // Koneksi/timeout error -> tampil pesan, jangan buka
       logSerial("RFID_WEB_ERR", "koneksi ke server gagal");

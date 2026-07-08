@@ -149,7 +149,30 @@ if ($method === 'POST') {
         }
     }
 
-    // C. UPDATE PASSWORD
+    // C. UPDATE PROFIL (nama & email)
+    if ($action === 'update_profile') {
+        $nama_lengkap = trim($input['nama_lengkap'] ?? '');
+        $email = trim($input['email'] ?? '');
+
+        if (empty($nama_lengkap)) {
+            jsonResponse(['success' => false, 'message' => 'Nama lengkap tidak boleh kosong'], 400);
+        }
+        if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            jsonResponse(['success' => false, 'message' => 'Format email tidak valid'], 400);
+        }
+
+        $db->prepare("UPDATE users SET nama_lengkap = ?, email = ? WHERE id = ?")
+           ->execute([$nama_lengkap, $email, $user_id]);
+
+        $stmt = $db->prepare("SELECT * FROM users WHERE id = ?");
+        $stmt->execute([$user_id]);
+        $user = $stmt->fetch();
+        unset($user['password']);
+
+        jsonResponse(['success' => true, 'message' => 'Profil berhasil disimpan', 'user' => $user]);
+    }
+
+    // D. UPDATE PASSWORD
     if ($action === 'update_password') {
         $current_password = $input['current_password'] ?? '';
         $new_password = $input['new_password'] ?? '';

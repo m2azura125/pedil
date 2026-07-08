@@ -111,8 +111,11 @@
         <div class="form-group"><label>Alamat Email</label><input type="email" class="form-input" id="inputEmail" value="rahmadani@arsip.go.id"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>No. Kartu RFID</label><input type="text" class="form-input" value="RFID-001" disabled style="background:#f5f5f5"></div>
+        <div class="form-group"><label>Nama Pengguna (Username Login)</label><input type="text" class="form-input" id="inputUsername" value="rahmadani.adm"></div>
         <div class="form-group"><label>Jabatan</label><input type="text" class="form-input" id="inputJabatan" value="Administrator" disabled style="background:#f5f5f5"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>No. Kartu RFID</label><input type="text" class="form-input" value="RFID-001" disabled style="background:#f5f5f5"></div>
       </div>
       <div class="form-actions"><button class="btn btn-primary btn-sm" style="width:auto" id="btnSaveProfile" onclick="saveProfile()">Simpan perubahan</button></div>
     </div>
@@ -262,6 +265,7 @@ if(user){
   document.getElementById('profileRfid').textContent=user.rfid_label||'';
   document.getElementById('inputName').value=user.nama_lengkap;
   document.getElementById('inputEmail').value=user.email||'';
+  document.getElementById('inputUsername').value=user.username||'';
 }
 function updateTopClock(){const d=new Date();const days=['Min','Sen','Sel','Rab','Kam','Jum','Sab'];const months=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];document.getElementById('topClock').textContent=`${String(d.getHours()).padStart(2,'0')}.${String(d.getMinutes()).padStart(2,'0')}  ${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;}
 setInterval(updateTopClock,1000);updateTopClock();
@@ -405,9 +409,14 @@ async function savePin() {
 async function saveProfile() {
   const nama_lengkap = document.getElementById('inputName').value.trim();
   const email = document.getElementById('inputEmail').value.trim();
+  const username = document.getElementById('inputUsername').value.trim();
 
   if (!nama_lengkap) {
     alert('Nama lengkap tidak boleh kosong');
+    return;
+  }
+  if (!username) {
+    alert('Nama pengguna tidak boleh kosong');
     return;
   }
 
@@ -418,7 +427,7 @@ async function saveProfile() {
     const res = await fetch('api/manage_credential.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'update_profile', nama_lengkap, email })
+      body: JSON.stringify({ action: 'update_profile', nama_lengkap, email, username })
     });
     const data = await res.json();
     alert(data.message);
@@ -426,6 +435,7 @@ async function saveProfile() {
       localStorage.setItem('pedil_user', JSON.stringify(data.user));
       document.getElementById('sidebarName').textContent = data.user.nama_lengkap;
       document.getElementById('profileName').textContent = data.user.nama_lengkap;
+      document.getElementById('inputUsername').value = data.user.username;
     }
   } catch (e) {
     alert('Gagal menyimpan perubahan profil');

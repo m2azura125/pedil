@@ -149,20 +149,33 @@ if ($method === 'POST') {
         }
     }
 
-    // C. UPDATE PROFIL (nama & email)
+    // C. UPDATE PROFIL (nama, email, username)
     if ($action === 'update_profile') {
         $nama_lengkap = trim($input['nama_lengkap'] ?? '');
         $email = trim($input['email'] ?? '');
+        $username = trim($input['username'] ?? '');
 
         if (empty($nama_lengkap)) {
             jsonResponse(['success' => false, 'message' => 'Nama lengkap tidak boleh kosong'], 400);
+        }
+        if (empty($username)) {
+            jsonResponse(['success' => false, 'message' => 'Nama pengguna tidak boleh kosong'], 400);
+        }
+        if (!preg_match('/^[a-zA-Z0-9._-]{3,50}$/', $username)) {
+            jsonResponse(['success' => false, 'message' => 'Nama pengguna hanya boleh huruf, angka, titik, garis bawah/hubung (3-50 karakter)'], 400);
         }
         if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
             jsonResponse(['success' => false, 'message' => 'Format email tidak valid'], 400);
         }
 
-        $db->prepare("UPDATE users SET nama_lengkap = ?, email = ? WHERE id = ?")
-           ->execute([$nama_lengkap, $email, $user_id]);
+        $chk = $db->prepare("SELECT id FROM users WHERE username = ? AND id != ?");
+        $chk->execute([$username, $user_id]);
+        if ($chk->fetch()) {
+            jsonResponse(['success' => false, 'message' => 'Nama pengguna sudah dipakai akun lain'], 409);
+        }
+
+        $db->prepare("UPDATE users SET nama_lengkap = ?, email = ?, username = ? WHERE id = ?")
+           ->execute([$nama_lengkap, $email, $username, $user_id]);
 
         $stmt = $db->prepare("SELECT * FROM users WHERE id = ?");
         $stmt->execute([$user_id]);

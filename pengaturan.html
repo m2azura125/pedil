@@ -122,7 +122,7 @@
       <p style="font-size:12px;color:var(--text-secondary);margin-bottom:16px">Kata sandi dan autentikasi</p>
       <div class="security-item">
         <div class="info"><h4>Kata Sandi</h4><p>Terakhir diubah 30 hari lalu</p></div>
-        <button class="btn btn-outline btn-sm" onclick="alert('Fitur ubah kata sandi dapat dikonfigurasi melalui database administrator.')">Ubah kata sandi</button>
+        <button class="btn btn-outline btn-sm" onclick="openPasswordModal()">Ubah kata sandi</button>
       </div>
       <div class="security-item">
         <div class="info"><h4>Sertifikat RFID</h4><p>Kartu aktif terhubung ke akun ini</p></div>
@@ -199,6 +199,31 @@
       </div>
       
       <button class="btn btn-primary" onclick="savePin()" id="btnSavePin" style="width:100%">Simpan & Inject PIN</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Password -->
+<div id="passwordModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3>Ubah Kata Sandi</h3>
+      <button class="close-btn" onclick="closePasswordModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Password Lama</label>
+        <input type="password" class="form-input" id="modalCurrentPassword" placeholder="Masukkan password saat ini">
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Password Baru</label>
+        <input type="password" class="form-input" id="modalNewPassword" placeholder="Minimal 6 karakter">
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label>Konfirmasi Password Baru</label>
+        <input type="password" class="form-input" id="modalConfirmPassword" placeholder="Ulangi password baru">
+      </div>
+      <button class="btn btn-primary" onclick="savePassword()" id="btnSavePassword" style="width:100%">Simpan Password Baru</button>
     </div>
   </div>
 </div>
@@ -374,6 +399,53 @@ async function savePin() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Simpan & Inject PIN';
+  }
+}
+
+function openPasswordModal() {
+  document.getElementById('modalCurrentPassword').value = '';
+  document.getElementById('modalNewPassword').value = '';
+  document.getElementById('modalConfirmPassword').value = '';
+  document.getElementById('passwordModal').style.display = 'flex';
+}
+function closePasswordModal() {
+  document.getElementById('passwordModal').style.display = 'none';
+}
+async function savePassword() {
+  const currentPassword = document.getElementById('modalCurrentPassword').value;
+  const newPassword = document.getElementById('modalNewPassword').value;
+  const confirmPassword = document.getElementById('modalConfirmPassword').value;
+
+  if (!currentPassword || !newPassword || !confirmPassword) {
+    alert('Semua field wajib diisi');
+    return;
+  }
+  if (newPassword.length < 6) {
+    alert('Password baru minimal 6 karakter');
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    alert('Konfirmasi password baru tidak cocok');
+    return;
+  }
+
+  const btn = document.getElementById('btnSavePassword');
+  btn.disabled = true;
+  btn.textContent = 'Menyimpan...';
+  try {
+    const res = await fetch('api/manage_credential.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'update_password', current_password: currentPassword, new_password: newPassword })
+    });
+    const data = await res.json();
+    alert(data.message);
+    if (data.success) closePasswordModal();
+  } catch (e) {
+    alert('Gagal menyimpan password');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Simpan Password Baru';
   }
 }
 

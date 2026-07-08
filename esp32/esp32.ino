@@ -6,33 +6,22 @@
  *  Base: v4 yang sudah 100% jalan (tidak ada perubahan logika)
  *  Tambahan: WiFi HTTP ke https://padil.bilgisa.id/api
  *
- *  Yang TIDAK berubah dari v4:
- *   - Semua logika RFID, keypad, relay, door, enroll, lockout
- *   - EEPROM layout dan helper
- *   - State machine
- *   - Semua pin ESP32
- *
- *  Yang DITAMBAHKAN (berjalan di background, tidak ganggu alat):
- *   - Kirim data sensor ke web tiap 5 detik (hanya saat IDLE)
- *   - Poll perintah force_lock/force_unlock dari web tiap 10 detik
- *   - Enroll kartu baru otomatis sinkron ke web
- *   - RFID verifikasi ke web dulu, gagal -> fallback EEPROM
- *   - WiFi timeout pendek (1 detik) supaya tidak nge-hang
- *
  *  LIBRARY:
  *   MFRC522, Keypad, LiquidCrystal_I2C, EEPROM, WiFi, HTTPClient
  * ============================================================
  */
 
 // ── GANTI SESUAI JARINGAN ANDA ──────────────────────────────
-#define WIFI_SSID   "Berak Sekebon"
-#define WIFI_PASS   "zaetamarie"
+#define WIFI_SSID   "Fadhil"
+#define WIFI_PASS   "dhil2004"
 #define SERVER_URL  "https://padil.bilgisa.id/api"
 #define NODE_ID     "NODE-A"
 #define ROOM_ID     1
+
+#define TELEGRAM_BOT_TOKEN "8934757507:AAFtxfEG-9Odat081ZpJGqbxzgjcYzl2lpc"
+#define TELEGRAM_CHAT_ID   "-5182965830"
 // ────────────────────────────────────────────────────────────
 
-// Uncomment untuk aktifkan Nano (setelah Nano terverifikasi)
 #define USE_NANO
 
 #include <SPI.h>
@@ -42,10 +31,11 @@
 #include <LiquidCrystal_I2C.h>
 #include <EEPROM.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 
 // ============================================================
-//  PIN ESP32 (tidak berubah dari v4)
+//  PIN ESP32
 // ============================================================
 #define RFID_SS   5
 #define RFID_RST  4
@@ -59,7 +49,7 @@ byte colPins[4] = {32, 27, 12, 33};
 #define NANO_RX  34
 
 // ============================================================
-//  EEPROM (tidak berubah dari v4)
+//  EEPROM
 // ============================================================
 #define EEPROM_SIZE     256
 #define EEPROM_JUMLAH   0
@@ -68,7 +58,7 @@ byte colPins[4] = {32, 27, 12, 33};
 #define MAX_KARTU       10
 
 // ============================================================
-//  KONFIGURASI (tidak berubah dari v4)
+//  KONFIGURASI
 // ============================================================
 const char PIN_BENAR[] = "1234";
 
@@ -81,7 +71,7 @@ const int VIB_WINDOW_MS  = 10000;
 const int VIB_DANGER_CNT = 3;
 
 // ============================================================
-//  STATE MACHINE (tidak berubah dari v4)
+//  STATE MACHINE
 // ============================================================
 enum State {
   S_IDLE, S_PIN_ENTRY, S_PIN_ONLY,
@@ -96,7 +86,7 @@ const char* STATE_NAMES[] = {
 };
 
 // ============================================================
-//  KEYPAD (tidak berubah dari v4)
+//  KEYPAD
 // ============================================================
 const byte KP_ROWS = 4, KP_COLS = 4;
 char keys[4][4] = {
@@ -114,7 +104,7 @@ LiquidCrystal_I2C lcd(LCD_ADDR, 16, 2);
 Keypad keypad = Keypad(makeKeymap(keys), rowPins, colPins, KP_ROWS, KP_COLS);
 
 // ============================================================
-//  VARIABEL (tidak berubah dari v4)
+//  VARIABEL
 // ============================================================
 int  stokPct[4]  = {100,100,100,100};
 int  sensorCm[4] = {0,0,0,0};
@@ -150,14 +140,19 @@ unsigned long lastBeepMs = 0, lastStokWarnMs = 0;
 unsigned long lastRfidReinitMs = 0;
 String lcdL1 = "", lcdL2 = "";
 
-// ── WiFi tambahan ────────────────────────────────────────────
 bool wifiOK = false;
 unsigned long lastSensorMs    = 0;
 unsigned long lastCmdMs       = 0;
 unsigned long lastWifiCheckMs = 0;
 
+String telegramPendingMsg   = "";
+bool   telegramHasPending   = false;
+unsigned long lastTelegramRetryMs = 0;
+const unsigned long TELEGRAM_RETRY_MS = 15000;
+
 // ── FORWARD DECLARATION ──────────────────────────────────────
 void beep(int n, int ms = 80);
+void beepDurasi(unsigned long totalMs, int onMs = 150, int offMs = 100);
 void logSerial(String ev, String det = "");
 
 void resetKeIdle() {
@@ -169,7 +164,7 @@ void resetKeIdle() {
 }
 
 // ============================================================
-//  EEPROM HELPERS (tidak berubah dari v4)
+//  EEPROM HELPERS
 // ============================================================
 int bacaJumlahKartu() {
   byte j = EEPROM.read(EEPROM_JUMLAH);
@@ -227,10 +222,8 @@ String uidToHex(byte *uid, byte size) {
 }
 
 // ============================================================
-//  WIFI FUNCTIONS (background, tidak ganggu alat)
+//  WIFI FUNCTIONS
 // ============================================================
-
-// Koneksi WiFi — maks 5 detik, lalu lanjut apapun hasilnya
 void setupWifi() {
   lcd.setCursor(0,1); lcd.print("Koneksi WiFi... ");
   WiFi.mode(WIFI_STA);
@@ -243,7 +236,6 @@ void setupWifi() {
   Serial.println(wifiOK ? " OK: " + WiFi.localIP().toString() : " GAGAL (offline)");
 }
 
-// POST JSON ke endpoint dengan timeout pendek
 int httpPost(String endpoint, String body) {
   if (WiFi.status() != WL_CONNECTED) return -1;
   HTTPClient http;
@@ -256,21 +248,57 @@ int httpPost(String endpoint, String body) {
   return code;
 }
 
-int httpGet(String endpoint) {
-  if (WiFi.status() != WL_CONNECTED) return -1;
+// Kirim pesan ke Telegram, return true jika berhasil (HTTP 200)
+bool sendTelegramMessage(String text) {
+  if (WiFi.status() != WL_CONNECTED) return false;
+  WiFiClientSecure client;
+  client.setInsecure();
   HTTPClient http;
-  http.begin(String(SERVER_URL) + endpoint);
-  http.setConnectTimeout(1000);
-  http.setTimeout(1000);
-  int code = http.GET();
-  String resp = (code == 200) ? http.getString() : "";
+  String url = "https://api.telegram.org/bot" + String(TELEGRAM_BOT_TOKEN) + "/sendMessage";
+  http.begin(client, url);
+  http.addHeader("Content-Type", "application/json");
+  http.setConnectTimeout(2000);
+  http.setTimeout(2000);
+  String body = "{\"chat_id\":\"" + String(TELEGRAM_CHAT_ID) + "\",\"text\":\"" + text + "\"}";
+  int code = http.POST(body);
   http.end();
-  // Simpan response untuk di-parse, return code saja
-  return code;
+  return (code == 200);
 }
 
-// Verifikasi kartu ke web, return true jika authorized
-// httpOK = false jika koneksi error (bukan penolakan) -> fallback EEPROM
+// Kirim alert Telegram. Kalau gagal (WiFi/timeout), pesan disimpan
+// sebagai pending dan otomatis dicoba lagi saat alert berikutnya
+// atau secara berkala lewat retryTelegramPending() di loop().
+void sendTelegramAlert(String text) {
+  if (telegramHasPending) {
+    if (sendTelegramMessage(telegramPendingMsg)) {
+      logSerial("TELEGRAM_RETRY_OK");
+      telegramHasPending = false;
+      telegramPendingMsg = "";
+    }
+  }
+  if (sendTelegramMessage(text)) {
+    logSerial("TELEGRAM_OK");
+  } else {
+    logSerial("TELEGRAM_GAGAL", "disimpan utk retry");
+    telegramPendingMsg = telegramHasPending ? (telegramPendingMsg + " || " + text) : text;
+    telegramHasPending = true;
+  }
+}
+
+void retryTelegramPending() {
+  if (!telegramHasPending) return;
+  if (WiFi.status() != WL_CONNECTED) return;
+  if (millis() - lastTelegramRetryMs < TELEGRAM_RETRY_MS) return;
+  lastTelegramRetryMs = millis();
+  if (sendTelegramMessage(telegramPendingMsg)) {
+    logSerial("TELEGRAM_RETRY_OK");
+    telegramHasPending = false;
+    telegramPendingMsg = "";
+  }
+}
+
+// Verifikasi RFID ke web
+// httpOK = false jika koneksi error (bukan penolakan server)
 bool verifyRfidWeb(String uidHex, String &outUser, bool &httpOK) {
   httpOK = false;
   if (!wifiOK || WiFi.status() != WL_CONNECTED) return false;
@@ -300,8 +328,7 @@ bool verifyRfidWeb(String uidHex, String &outUser, bool &httpOK) {
   return false;
 }
 
-// Verifikasi PIN ke web, return true jika authorized
-// httpOK = false jika koneksi error -> fallback ke PIN lokal
+// Verifikasi PIN ke web, fallback PIN lokal kalau koneksi error
 bool verifyPinWeb(String pin, String &outUser, bool &httpOK) {
   httpOK = false;
   if (!wifiOK || WiFi.status() != WL_CONNECTED) return false;
@@ -331,10 +358,8 @@ bool verifyPinWeb(String pin, String &outUser, bool &httpOK) {
   return false;
 }
 
-// Kirim data sensor ke web (hanya saat idle, tidak ganggu interaksi)
 void sendSensorData() {
   if (!wifiOK || WiFi.status() != WL_CONNECTED) return;
-
   String sensors = "[";
   for (int i = 0; i < 4; i++) {
     int pct = stokPct[i];
@@ -344,22 +369,20 @@ void sendSensorData() {
     sensors += "{\"percent\":" + String(val) + ",\"status\":\"" + String(st) + "\"}";
   }
   sensors += "]";
-
   String doors = "[";
   for (int i = 0; i < 2; i++) {
     if (i > 0) doors += ",";
     doors += "{\"closed\":" + String(dsRecv[i] == 0 ? "true" : "false") + "}";
   }
   doors += "]";
-
   String vibs = "[";
   for (int i = 0; i < 2; i++) {
     if (i > 0) vibs += ",";
-    vibs += "{\"value\":" + String(vibRecv[i]) +
-            ",\"level\":\"" + String(vibRecv[i] == 1 ? "danger" : "normal") + "\"}";
+    const char* lv = (vibRecv[i] == 2) ? "bahaya" :
+                     (vibRecv[i] == 1) ? "mencurigakan" : "normal";
+    vibs += "{\"value\":" + String(vibRecv[i]) + ",\"level\":\"" + String(lv) + "\"}";
   }
   vibs += "]";
-
   String body =
     "{\"node_id\":\"" + String(NODE_ID) + "\","
     "\"room_id\":"    + String(ROOM_ID)  + ","
@@ -369,12 +392,10 @@ void sendSensorData() {
     "\"sensors\":"    + sensors + ","
     "\"door_status\":" + doors  + ","
     "\"vibration\":"  + vibs   + "}";
-
   int code = httpPost("/esp32_data.php", body);
   if (code != 200) Serial.println("[HTTP] sendSensor: " + String(code));
 }
 
-// Poll perintah dari web
 void pollCommand() {
   if (!wifiOK || WiFi.status() != WL_CONNECTED) return;
   HTTPClient http;
@@ -385,31 +406,23 @@ void pollCommand() {
   if (code != 200) { http.end(); return; }
   String resp = http.getString();
   http.end();
-
   if (resp.indexOf("\"command\":\"force_lock\"") >= 0) {
     if (relayOpen) {
-      digitalWrite(RELAY, LOW);
-      relayOpen = false;
-      door1Open = false; door2Open = false;
-      logSerial("CMD_FORCE_LOCK", "dari web");
-      beep(2, 100);
-      resetKeIdle();
+      digitalWrite(RELAY, LOW); relayOpen=false;
+      door1Open=false; door2Open=false;
+      logSerial("CMD_FORCE_LOCK","dari web"); beep(2,100); resetKeIdle();
     }
   } else if (resp.indexOf("\"command\":\"force_unlock\"") >= 0) {
-    if (!relayOpen && sysState == S_IDLE) {
-      digitalWrite(RELAY, HIGH);
-      relayOpen = true;
-      sysState = S_DOOR_OPEN;
-      door1Open = true; door2Open = true;
-      door1BukaMs = door2BukaMs = millis();
-      logSerial("CMD_FORCE_UNLOCK", "dari web");
-      beep(3, 60);
-      setLCD("BUKA (WEB CMD)", "Silakan akses...");
+    if (!relayOpen && sysState==S_IDLE) {
+      digitalWrite(RELAY, HIGH); relayOpen=true;
+      sysState=S_DOOR_OPEN; door1Open=true; door2Open=true;
+      door1BukaMs=door2BukaMs=millis();
+      logSerial("CMD_FORCE_UNLOCK","dari web"); beep(3,60);
+      setLCD("BUKA (WEB CMD)","Silakan akses...");
     }
   }
 }
 
-// Sinkron kartu baru ke web (dipanggil SETELAH simpan EEPROM berhasil)
 void enrollKartuWeb(String uidHex) {
   if (!wifiOK || WiFi.status() != WL_CONNECTED) return;
   String body = "{\"action\":\"enroll\",\"rfid_uid\":\"" + uidHex +
@@ -425,28 +438,20 @@ void setup() {
   Wire.begin(21, 22);
   SPI.begin();
   EEPROM.begin(EEPROM_SIZE);
-
   if (EEPROM.read(EEPROM_JUMLAH) == 0xFF) {
-    EEPROM.write(EEPROM_JUMLAH, 0);
-    EEPROM.commit();
+    EEPROM.write(EEPROM_JUMLAH, 0); EEPROM.commit();
     Serial.println("EEPROM diinisialisasi.");
   }
-
   #ifdef USE_NANO
     Serial2.begin(9600, SERIAL_8N1, NANO_RX, -1);
   #endif
-
   pinMode(RELAY,  OUTPUT); digitalWrite(RELAY,  LOW);
   pinMode(BUZZER, OUTPUT); digitalWrite(BUZZER, LOW);
-
   lcd.init(); lcd.backlight();
   lcd.setCursor(0,0); lcd.print("Lemari Arsip    ");
   lcd.setCursor(0,1); lcd.print("Inisialisasi... ");
-
   rfid.PCD_Init(); delay(50);
-
-  setupWifi();   // maks 5 detik, lalu lanjut apapun hasilnya
-
+  setupWifi();
   Serial.print("Kartu EEPROM: "); Serial.println(bacaJumlahKartu());
   delay(600);
   setLCD("  SCAN KARTU  ", wifiOK ? "Online          " : "Offline (EEPROM)");
@@ -462,34 +467,26 @@ void loop() {
   #ifdef USE_NANO
     parseNanoData();
   #endif
-
-  // ── WiFi background tasks (hanya saat IDLE supaya tidak ganggu) ──
   if (sysState == S_IDLE) {
-    // Cek status WiFi tiap 30 detik
     if (millis() - lastWifiCheckMs > 30000) {
       wifiOK = (WiFi.status() == WL_CONNECTED);
       if (!wifiOK) WiFi.reconnect();
       lastWifiCheckMs = millis();
     }
-    // Kirim sensor tiap 5 detik
     if (wifiOK && millis() - lastSensorMs > 5000) {
-      sendSensorData();
-      lastSensorMs = millis();
+      sendSensorData(); lastSensorMs = millis();
     }
-    // Poll perintah web tiap 10 detik
     if (wifiOK && millis() - lastCmdMs > 10000) {
-      pollCommand();
-      lastCmdMs = millis();
+      pollCommand(); lastCmdMs = millis();
     }
   }
-
-  // ── Fungsi utama alat (sama persis dengan v4) ────────────────
   handleRFID();
   handleKeypad();
   handleDoor();
   handleVibration();
   handleLockout();
   handleStok();
+  retryTelegramPending();
 }
 
 // ============================================================
@@ -500,10 +497,7 @@ void parseNanoData() {
   if (!Serial2.available()) {
     if (millis() - lastNanoMs > 3000 && nanoOK) {
       nanoOK = false;
-      for (int i=0; i<4; i++) {
-        stokPct[i] = -1;
-        sensorCm[i] = -1;
-      }
+      for (int i=0; i<4; i++) { stokPct[i]=-1; sensorCm[i]=-1; }
       Serial.println("[NANO] Koneksi terputus!");
     }
     return;
@@ -511,12 +505,9 @@ void parseNanoData() {
   String raw = Serial2.readStringUntil('\n');
   raw.trim();
   if (raw.length() == 0) return;
-
-  // Validasi: harus ada 7 koma (8 nilai)
   int komaCount = 0;
   for (char c : raw) if (c == ',') komaCount++;
   if (komaCount < 7) return;
-
   int vals[8]={0}, prev=0;
   for (int i=0; i<8; i++) {
     int c = raw.indexOf(',', prev);
@@ -526,49 +517,39 @@ void parseNanoData() {
   }
   sensorCm[0]=vals[0]; sensorCm[1]=vals[1];
   sensorCm[2]=vals[2]; sensorCm[3]=vals[3];
-  
-  // Hitung persentase stok secara lokal di ESP32 agar sinkronisasi web tetap jalan
-  for (int i=0; i<4; i++) {
-    stokPct[i] = hitungPct(sensorCm[i]);
-  }
-  
+  for (int i=0; i<4; i++) stokPct[i] = hitungPct(sensorCm[i]);
   dsRecv[0]=vals[4];  dsRecv[1]=vals[5];
   vibRecv[0]=vals[6]; vibRecv[1]=vals[7];
   lastNanoMs = millis(); nanoOK = true;
 
-  // Tampilkan data hasil parsing dari Nano ke Serial Monitor ESP32 tiap 2 detik
-  static unsigned long lastRawPrintMs = 0;
-  if (millis() - lastRawPrintMs > 2000) {
+  static unsigned long lastPrintMs = 0;
+  if (millis() - lastPrintMs > 2000) {
+    lastPrintMs = millis();
     Serial.println("------------------------------------------");
     Serial.print("Jarak  : ");
-    for (int i = 0; i < 4; i++) {
-      if (sensorCm[i] < 0) Serial.print("-1cm");
+    for (int i=0;i<4;i++) {
+      if (sensorCm[i]<0) Serial.print("-1cm");
       else { Serial.print(sensorCm[i]); Serial.print("cm"); }
-      if (i < 3) Serial.print(" | ");
+      if (i<3) Serial.print(" | ");
     }
     Serial.println();
     Serial.print("Stok % : ");
-    for (int i = 0; i < 4; i++) {
-      if (stokPct[i] < 0) Serial.print("-1%");
+    for (int i=0;i<4;i++) {
+      if (stokPct[i]<0) Serial.print("-1%");
       else { Serial.print(stokPct[i]); Serial.print("%"); }
-      if (i < 3) Serial.print(" | ");
+      if (i<3) Serial.print(" | ");
     }
     Serial.println();
-    Serial.print("Pintu  : 1=");
-    Serial.print(dsRecv[0] == 0 ? "TUTUP" : "BUKA ");
-    Serial.print("  2=");
-    Serial.println(dsRecv[1] == 0 ? "TUTUP" : "BUKA");
-    Serial.print("Getaran: 1=");
-    Serial.print(vibRecv[0] == 1 ? "TERDETEKSI" : "diam");
-    Serial.print("  2=");
-    Serial.println(vibRecv[1] == 1 ? "TERDETEKSI" : "diam");
-    lastRawPrintMs = millis();
+    Serial.print("Pintu  : 1="); Serial.print(dsRecv[0]==0?"TUTUP":"BUKA ");
+    Serial.print("  2="); Serial.println(dsRecv[1]==0?"TUTUP":"BUKA");
+    Serial.print("Getaran: 1="); Serial.print(vibRecv[0]==1?"TERDETEKSI":"diam");
+    Serial.print("  2="); Serial.println(vibRecv[1]==1?"TERDETEKSI":"diam");
   }
 }
 #endif
 
 // ============================================================
-//  CEK PINTU (tidak berubah dari v4)
+//  CEK PINTU
 // ============================================================
 bool doorTerbuka(int door) {
   #ifndef USE_NANO
@@ -586,10 +567,9 @@ bool doorTerbuka(int door) {
 }
 
 // ============================================================
-//  RFID (sama dengan v4, tambah verifikasi web)
+//  RFID
 // ============================================================
 void handleRFID() {
-  // Reinit hanya kalau chip benar-benar hang
   if (sysState == S_IDLE && millis() - lastRfidReinitMs > 30000) {
     byte v = rfid.PCD_ReadRegister(MFRC522::VersionReg);
     if (v == 0x00 || v == 0xFF) {
@@ -598,18 +578,16 @@ void handleRFID() {
     }
     lastRfidReinitMs = millis();
   }
-
   if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial()) return;
 
   byte uid[7] = {0};
   byte size = rfid.uid.size;
   for (byte b = 0; b < size && b < 7; b++) uid[b] = rfid.uid.uidByte[b];
   String uidStr = uidToString(uid, size);
-
   rfid.PICC_HaltA();
   rfid.PCD_StopCrypto1();
 
-  // ── Mode ENROLL: simpan EEPROM dulu, sinkron web belakangan ──
+  // ── Mode ENROLL ──────────────────────────────────────────
   if (sysState == S_ENROLL) {
     bool ok = simpanKartu(uid, size);
     if (ok) {
@@ -630,15 +608,13 @@ void handleRFID() {
       int jml = bacaJumlahKartu();
       Serial.println("========================================");
       if (jml >= MAX_KARTU) {
-        Serial.println("  ENROLL GAGAL: Slot penuh (" + String(MAX_KARTU) + ")");
-        logSerial("ENROLL_PENUH");
-        beep(3, 100);
-        setLCD("SLOT PENUH!", String(MAX_KARTU) + " kartu maks");
+        Serial.println("  ENROLL GAGAL: Slot penuh");
+        logSerial("ENROLL_PENUH"); beep(3,100);
+        setLCD("SLOT PENUH!", String(MAX_KARTU)+" kartu maks");
       } else {
         Serial.println("  ENROLL GAGAL: Kartu sudah terdaftar");
         Serial.println("  UID  : " + uidStr);
-        logSerial("ENROLL_DUPLIKAT", uidStr);
-        beep(2, 200);
+        logSerial("ENROLL_DUPLIKAT", uidStr); beep(2,200);
         setLCD("KARTU SUDAH ADA", uidStr.substring(0,16));
       }
       Serial.println("========================================");
@@ -650,66 +626,63 @@ void handleRFID() {
 
   if (sysState != S_IDLE) return;
 
-  // ── Mode IDLE: verifikasi HANYA via web API ──────────────
+  // ── Mode IDLE: verifikasi RFID ────────────────────────────
+  // Urutan: (1) WiFi konek -> cek web, (2) WiFi mati -> cek EEPROM
   bool valid = false;
   String aksesUser = "";
+  String viaKeterangan = "";
 
   if (wifiOK) {
     bool httpOK = false;
     valid = verifyRfidWeb(uidStr, aksesUser, httpOK);
     if (!httpOK) {
-      // Koneksi/timeout error -> tampil pesan, jangan buka
-      logSerial("RFID_WEB_ERR", "koneksi ke server gagal");
-      setLCD("SERVER ERROR!", "Coba lagi..    ");
-      delay(1500);
-      setLCD("  SCAN KARTU  ", "                ");
-      return;
+      // Koneksi/timeout error -> fallback EEPROM
+      logSerial("RFID_WEB_ERR", "fallback EEPROM");
+      valid = cariKartu(uid, size);
+      viaKeterangan = "EEPROM (web error)";
+    } else {
+      viaKeterangan = valid ? "Web API" : "Web API (ditolak)";
     }
   } else {
-    // WiFi mati -> tidak bisa verifikasi, tolak
-    logSerial("RFID_WIFI_MATI", "tidak bisa verifikasi");
-    setLCD("WiFi Offline!", "Hubungi admin.. ");
-    delay(1500);
-    setLCD("  SCAN KARTU  ", "                ");
-    return;
+    // WiFi mati -> langsung cek EEPROM
+    valid = cariKartu(uid, size);
+    viaKeterangan = valid ? "EEPROM (offline)" : "EEPROM (tidak ada)";
+    if (!valid) Serial.println("[INFO] WiFi mati, kartu tidak ada di EEPROM");
   }
 
   if (valid) {
     rfidGagal=0; pinLen=0; pinGagal=0;
     memset(pinBuf,0,sizeof(pinBuf));
-    logSerial("RFID_OK", uidStr + (aksesUser.length() ? " | " + aksesUser : ""));
+    logSerial("RFID_OK", uidStr + (aksesUser.length() ? " | "+aksesUser : ""));
     Serial.println("========================================");
     Serial.println("  KARTU DITERIMA");
     Serial.println("  UID  : " + uidStr);
     Serial.println("  Size : " + String(size) + " byte");
     if (aksesUser.length()) Serial.println("  User : " + aksesUser);
-    Serial.println("  Via  : " + String(wifiOK ? "Web API" : "EEPROM (offline)"));
+    Serial.println("  Via  : " + viaKeterangan);
     Serial.println("========================================");
     beep(3, 60);
     setLCD("AKSES DITERIMA!", aksesUser.length() ? aksesUser.substring(0,16) : "Selamat datang!");
     delay(1000);
-    digitalWrite(RELAY, HIGH);
-    relayOpen = true;
-    sysState = S_DOOR_OPEN;
-    door1Open = true; door2Open = true;
-    door1BukaMs = door2BukaMs = millis();
+    digitalWrite(RELAY, HIGH); relayOpen=true;
+    sysState=S_DOOR_OPEN; door1Open=true; door2Open=true;
+    door1BukaMs=door2BukaMs=millis();
     setLCD("PINTU TERBUKA", "Silakan akses...");
   } else {
     rfidGagal++; beep(1, 1000);
-    logSerial("RFID_GAGAL", uidStr + " (" + rfidGagal + "/3)");
+    logSerial("RFID_GAGAL", uidStr+" ("+rfidGagal+"/3)");
     Serial.println("========================================");
     Serial.println("  KARTU DITOLAK");
     Serial.println("  UID  : " + uidStr);
     Serial.println("  Size : " + String(size) + " byte");
     Serial.println("  Percobaan: " + String(rfidGagal) + "/3");
-    Serial.println("  Via  : " + String(wifiOK ? "Web API" : "EEPROM (offline)"));
+    Serial.println("  Via  : " + viaKeterangan);
     Serial.println("========================================");
     if (rfidGagal >= 3) {
-      sysState = S_PIN_ONLY;
-      pinLen=0; memset(pinBuf,0,sizeof(pinBuf));
+      sysState=S_PIN_ONLY; pinLen=0; memset(pinBuf,0,sizeof(pinBuf));
       setLCD("RFID GAGAL 3x!", "Masukkan PIN:   ");
     } else {
-      setLCD("AKSES DITOLAK!", "Kartu: " + String(rfidGagal) + "/3 coba");
+      setLCD("AKSES DITOLAK!", "Kartu: "+String(rfidGagal)+"/3 coba");
       delay(1800);
       setLCD("  SCAN KARTU  ", "                ");
     }
@@ -717,24 +690,21 @@ void handleRFID() {
 }
 
 // ============================================================
-//  KEYPAD + PIN (tidak berubah dari v4)
+//  KEYPAD + PIN
 // ============================================================
 void handleKeypad() {
   if (sysState==S_LOCKOUT || sysState==S_VIB_ALERT || sysState==S_DOOR_OPEN) return;
-
   char key = keypad.getKey();
   if (!key) return;
 
   if (sysState == S_ENROLL) {
-    if (key == 'B') { logSerial("ENROLL_BATAL"); beep(1, 50); resetKeIdle(); }
+    if (key=='B') { logSerial("ENROLL_BATAL"); beep(1,50); resetKeIdle(); }
     return;
   }
 
   if (sysState == S_ENROLL_PIN) {
     if (key=='B') { logSerial("ENROLL_PIN_BATAL"); beep(1,50); resetKeIdle(); return; }
-    if (key=='A'||key=='C'||key=='D') {
-      return;
-    }
+    if (key=='A'||key=='C'||key=='D') return;
     if (key=='#') {
       if (pinLen>0) {pinLen--; pinBuf[pinLen]='\0';}
       String m=""; for(int i=0;i<pinLen;i++) m+="*";
@@ -743,7 +713,7 @@ void handleKeypad() {
     }
     if (key=='*') {
       pinBuf[pinLen]='\0';
-      bool cocok = (strcmp(pinBuf, PIN_BENAR)==0);
+      bool cocok=(strcmp(pinBuf,PIN_BENAR)==0);
       pinLen=0; memset(pinBuf,0,sizeof(pinBuf));
       if (cocok) {
         sysState=S_ENROLL; logSerial("ENROLL_PIN_OK"); beep(2,60);
@@ -753,8 +723,7 @@ void handleKeypad() {
         setLCD("Scan kartu baru","B = batal       ");
       } else {
         logSerial("ENROLL_PIN_SALAH"); beep(2,150);
-        setLCD("PIN SALAH!","Enroll dibatal..");
-        delay(1500); resetKeIdle();
+        setLCD("PIN SALAH!","Enroll dibatal.."); delay(1500); resetKeIdle();
       }
       return;
     }
@@ -787,15 +756,10 @@ void handleKeypad() {
     if (wifiOK) {
       bool httpOK = false;
       valid = verifyPinWeb(pinBuf, aksesUser, httpOK);
-      if (!httpOK) {
-        // Fallback ke local PIN jika koneksi web bermasalah
-        valid = (strcmp(pinBuf, PIN_BENAR) == 0);
-      }
+      if (!httpOK) valid = (strcmp(pinBuf, PIN_BENAR)==0);  // fallback lokal
     } else {
-      // Fallback ke local PIN jika offline
-      valid = (strcmp(pinBuf, PIN_BENAR) == 0);
+      valid = (strcmp(pinBuf, PIN_BENAR)==0);  // offline -> PIN lokal
     }
-
     if (valid) {
       rfidGagal=0; pinGagal=0;
       logSerial("PIN_OK", aksesUser.length() ? aksesUser : "PIN Lokal");
@@ -807,8 +771,8 @@ void handleKeypad() {
       door1BukaMs=door2BukaMs=millis();
       setLCD("PINTU TERBUKA","Silakan akses...");
     } else {
-      pinGagal++; beep(1, 1000);
-      logSerial("PIN_GAGAL", String(pinGagal)+"/3");
+      pinGagal++; beep(1,1000);
+      logSerial("PIN_GAGAL",String(pinGagal)+"/3");
       if (pinGagal>=3) {
         sysState=S_LOCKOUT; lockoutStartMs=millis();
         logSerial("LOCKOUT_MULAI"); setLCD("SISTEM DIKUNCI!","Tunggu 5 menit  ");
@@ -825,15 +789,12 @@ void handleKeypad() {
 }
 
 // ============================================================
-//  DOOR (tidak berubah dari v4)
+//  DOOR
 // ============================================================
 void handleDoor() {
   if (sysState!=S_DOOR_OPEN) return;
   if (!relayOpen) return;
-
-  // Abaikan trigger sensor pintu selama 4 detik pertama agar pengguna sempat menarik pintu
-  if (millis() - door1BukaMs < 4000) return;
-
+  if (millis() - door1BukaMs < 4000) return;  // grace 4 detik
   bool triggered=doorTerbuka(1)||doorTerbuka(2);
   if (triggered) {
     digitalWrite(RELAY,LOW); relayOpen=false;
@@ -841,7 +802,6 @@ void handleDoor() {
     logSerial("RELAY_TERKUNCI","Door switch ter-trigger");
     resetKeIdle(); return;
   }
-
   unsigned long el=millis()-door1BukaMs;
   if (el>ALARM_MS) {
     if (millis()-lastBeepMs>400) {beep(1,60); lastBeepMs=millis();}
@@ -853,7 +813,7 @@ void handleDoor() {
 }
 
 // ============================================================
-//  STOK (tidak berubah dari v4)
+//  STOK
 // ============================================================
 void handleStok() {
   if (sysState!=S_IDLE) return;
@@ -869,39 +829,36 @@ void handleStok() {
 }
 
 // ============================================================
-//  GETARAN (tidak berubah dari v4)
+//  GETARAN
 // ============================================================
 void handleVibration() {
   for (int i=0;i<2;i++) {
     bool now=(vibRecv[i]==1);
-    
-    // Cek timeout hanya jika counter > 0
-    if (vibCnt[i] > 0 && (millis() - vibWin[i] > (unsigned long)VIB_WINDOW_MS)) {
-      Serial.print("[VIB] Window reset untuk Sensor "); Serial.println(i+1);
-      vibCnt[i] = 0;
+    if (millis()-vibWin[i]>(unsigned long)VIB_WINDOW_MS) {
+      vibCnt[i]=0; vibWin[i]=millis();
     }
-    
     if (now&&!vibPrev[i]) {
-      if (vibCnt[i] == 0) {
-        vibWin[i] = millis(); // Mulai window waktu pada ketukan pertama
-      }
       vibCnt[i]++;
       Serial.print("[VIB] Sensor "); Serial.print(i+1);
-      Serial.print(" terdeteksi! Count: "); Serial.print(vibCnt[i]);
-      Serial.println("/3");
+      Serial.print(" count: "); Serial.print(vibCnt[i]);
+      Serial.println("/" + String(VIB_DANGER_CNT));
     }
     vibPrev[i]=now;
     if (vibCnt[i]>=VIB_DANGER_CNT) {
       logSerial("GETARAN_BAHAYA","Sensor "+String(i+1));
-      beep(5,150); sysState=S_VIB_ALERT;
+      sysState=S_VIB_ALERT;
       setLCD("!! PERINGATAN !!","Getaran keras "+String(i+1)+"!");
-      vibCnt[i]=0; delay(3000); resetKeIdle();
+      sendTelegramAlert("PERINGATAN! Getaran keras terdeteksi pada Sensor " +
+                         String(i+1) + " (Node: " + String(NODE_ID) +
+                         ", Room: " + String(ROOM_ID) + ")");
+      beepDurasi(3000, 150, 100); // buzzer alarm selama 3 detik
+      vibCnt[i]=0; resetKeIdle();
     }
   }
 }
 
 // ============================================================
-//  LOCKOUT (tidak berubah dari v4)
+//  LOCKOUT
 // ============================================================
 void handleLockout() {
   if (sysState!=S_LOCKOUT) return;
@@ -926,6 +883,15 @@ void setLCD(String l1, String l2) {
   lcd.clear();
   lcd.setCursor(0,0); lcd.print(l1.substring(0,16).c_str());
   lcd.setCursor(0,1); lcd.print(l2.substring(0,16).c_str());
+}
+
+// Buzzer menyala putus-nyambung selama totalMs (dipakai untuk alarm bahaya)
+void beepDurasi(unsigned long totalMs, int onMs, int offMs) {
+  unsigned long start = millis();
+  while (millis() - start < totalMs) {
+    digitalWrite(BUZZER,HIGH); delay(onMs);
+    digitalWrite(BUZZER,LOW); delay(offMs);
+  }
 }
 
 void beep(int n, int ms) {

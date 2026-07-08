@@ -149,5 +149,31 @@ if ($method === 'POST') {
         }
     }
 
+    // C. UPDATE PASSWORD
+    if ($action === 'update_password') {
+        $current_password = $input['current_password'] ?? '';
+        $new_password = $input['new_password'] ?? '';
+
+        if (empty($current_password) || empty($new_password)) {
+            jsonResponse(['success' => false, 'message' => 'Password lama dan baru wajib diisi'], 400);
+        }
+        if (strlen($new_password) < 6) {
+            jsonResponse(['success' => false, 'message' => 'Password baru minimal 6 karakter'], 400);
+        }
+
+        $stmt = $db->prepare("SELECT password FROM users WHERE id = ?");
+        $stmt->execute([$user_id]);
+        $user = $stmt->fetch();
+
+        if (!$user || !password_verify($current_password, $user['password'])) {
+            jsonResponse(['success' => false, 'message' => 'Password lama salah'], 401);
+        }
+
+        $hash = password_hash($new_password, PASSWORD_DEFAULT);
+        $db->prepare("UPDATE users SET password = ? WHERE id = ?")->execute([$hash, $user_id]);
+
+        jsonResponse(['success' => true, 'message' => 'Password berhasil diubah']);
+    }
+
     jsonResponse(['success' => false, 'message' => 'Aksi tidak valid'], 400);
 }

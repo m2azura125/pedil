@@ -52,7 +52,7 @@ if ($method === 'POST') {
              VALUES (?, 'vibration', ?, ?, ?)"
         )->execute([$room_id, $i, $val['value'] ?? 0, $level]);
 
-        if ($level === 'danger') {
+        if ($level !== 'normal') {
             // Cek apakah alert getaran aktif sudah ada (hindari duplikat)
             $chk = $db->prepare(
                 "SELECT id FROM alerts
@@ -118,7 +118,7 @@ if ($method === 'POST') {
     // Resolve alert vibration jika sudah aman
     $allSafe = true;
     foreach ($vibration as $val) {
-        if (($val['level'] ?? 'normal') === 'danger') { $allSafe = false; break; }
+        if (($val['level'] ?? 'normal') !== 'normal') { $allSafe = false; break; }
     }
     if ($allSafe) {
         $db->prepare(

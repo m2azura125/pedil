@@ -334,7 +334,7 @@ function renderLive(d){
 
   // Vibration
   const vibHtml=(d.vibration||[]).map((v,i)=>{
-    const danger=v&&v.level==='danger';
+    const danger=v&&v.level&&v.level!=='normal';
     return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px">
       <span style="font-size:18px">${danger?'⚠️':'✅'}</span>
       <div>

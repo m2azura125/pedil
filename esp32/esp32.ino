@@ -14,7 +14,7 @@
 // ── GANTI SESUAI JARINGAN ANDA ──────────────────────────────
 #define WIFI_SSID   "Fadhil"
 #define WIFI_PASS   "dhil2004"
-#define SERVER_URL  "https://padil.bilgisa.id/api"
+#define SERVER_URL  "https://fadhilta.my.id/api"
 #define NODE_ID     "NODE-A"
 #define ROOM_ID     1
 

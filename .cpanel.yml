@@ -1,0 +1,10 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/fadhilta/public_html/
+    - /bin/cp -R api $DEPLOYPATH
+    - /bin/cp -R css $DEPLOYPATH
+    - /bin/cp -f index.html $DEPLOYPATH
+    - /bin/cp -f dashboard.html $DEPLOYPATH
+    - /bin/cp -f pengaturan.html $DEPLOYPATH
+    - /bin/cp -f rekap.html $DEPLOYPATH
